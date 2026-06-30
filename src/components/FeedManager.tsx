@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
 import { Send, Link as LinkIcon, Calendar, Trash2, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export default function FeedManager({ clubId }: { clubId: string }) {
   const [content, setContent] = useState("");
@@ -269,7 +271,9 @@ export default function FeedManager({ clubId }: { clubId: string }) {
                       </button>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed mb-4">{post.content}</p>
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 mb-4 prose-p:leading-relaxed prose-a:text-blue-500 hover:prose-a:text-blue-600 prose-img:rounded-xl">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
+                  </div>
 
                   {post.image_urls && post.image_urls.length > 0 && (
                     <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 gap-2">

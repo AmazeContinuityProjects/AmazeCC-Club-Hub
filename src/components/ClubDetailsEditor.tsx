@@ -81,8 +81,9 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
       
       <div className="space-y-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-            <FileText className="w-4 h-4" /> Description
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center justify-between">
+            <span className="flex items-center gap-2"><FileText className="w-4 h-4" /> Description</span>
+            <span className="text-xs font-normal text-gray-400">Markdown supported</span>
           </label>
           <textarea
             name="description"
@@ -163,7 +164,10 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Hiring Process / Recruitment Info</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center justify-between">
+            <span>Hiring Process / Recruitment Info</span>
+            <span className="text-xs font-normal text-gray-400">Markdown supported</span>
+          </label>
           <textarea
             name="hiring_process"
             value={details.hiring_process}

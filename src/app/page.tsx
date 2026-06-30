@@ -54,7 +54,10 @@ export default function Home() {
   const isSuperRep = activeRole === 'super-club-rep';
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black/95 text-gray-900 dark:text-gray-100 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-gray-50/50 dark:bg-[#03060F] text-gray-900 dark:text-gray-100 flex flex-col md:flex-row relative">
+      
+      {/* Background decoration from AmazeCC */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f080_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f080_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1f293710_1px,transparent_1px),linear-gradient(to_bottom,#1f293710_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none -z-10" />
       
       {/* Mobile Topbar */}
       <div className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 sticky top-0 z-50">
@@ -80,7 +83,7 @@ export default function Home() {
       )}
 
       {/* Desktop Sidebar */}
-      <div className="hidden md:block">
+      <div className="hidden md:block z-40">
         <Sidebar 
           activeTab={activeTab} 
           setActiveTab={setActiveTab}
@@ -92,8 +95,8 @@ export default function Home() {
         />
       </div>
       
-      <main className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 overflow-y-auto">
-        <div className="space-y-6">
+      <main className="flex-1 w-full min-h-screen pt-4 md:pl-[18rem] pb-6 overflow-y-auto overflow-x-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full space-y-6">
           {activeTab === "feed" && activeClubId && (
             <div className="fade-in">
               <h2 className="text-2xl font-bold mb-2">Feed Manager</h2>

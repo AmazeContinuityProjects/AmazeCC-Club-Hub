@@ -60,7 +60,8 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
     try {
       const res = await apiFetch('/api/club-admin/details', {
         method: 'POST',
-        body: JSON.stringify(details)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...details, club_id: clubId })
       });
       const data = await res.json();
       if (data.success) {

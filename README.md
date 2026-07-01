@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AmazeCC Club Hub
+
+<p align="center">
+  <img src="https://img.shields.io/badge/AmazeCC_Club_Hub-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="AmazeCC Club Hub">
+</p>
+
+<p align="center">
+  <strong>Club management platform for the VIT community</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/AmazeContinuityProjects/AmazeCC-Club-Hub"><strong>Repository</strong></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/github/last-commit/AmazeContinuityProjects/AmazeCC-Club-Hub/main?style=flat-square&label=Last%20Commit" alt="Last Commit">
+  <img src="https://img.shields.io/github/repo-size/AmazeContinuityProjects/AmazeCC-Club-Hub?style=flat-square&label=Repo%20Size&color=blueviolet" alt="Repo Size">
+  <br>
+  <img src="https://img.shields.io/badge/Next.js-000000?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js">
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind">
+</p>
+
+---
+
+## Overview
+
+AmazeCC Club Hub is a platform for integrating club management features and distributing them among the community members. It provides tools for event management, member coordination, and club-specific resources within the AmazeCC ecosystem.
+
+---
+
+## Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| **Framework** | Next.js |
+| **Language** | TypeScript |
+| **Styling** | Tailwind CSS |
+| **Backend** | AmazeCC API |
+
+---
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+git clone https://github.com/AmazeContinuityProjects/AmazeCC-Club-Hub.git
+cd AmazeCC-Club-Hub
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Features (In Development)
 
-## Learn More
+- 🏛️ Club discovery and directory
+- 📅 Event creation and management
+- 👥 Member coordination tools
+- 📢 Announcements and broadcasts
+- 📊 Analytics for club activities
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Contributing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Contributions are welcome! Feel free to fork the repo and submit a pull request.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
-import { Save, Loader2, Link as LinkIcon, Camera, Phone, Target, FileText, User } from "lucide-react";
+import { Save, Loader2, Link as LinkIcon, Camera, Phone, Target, FileText, User, Mail } from "lucide-react";
 
 export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
   const [details, setDetails] = useState({
@@ -12,7 +12,9 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
     recruitment_link: "",
     instagram: "",
     whatsapp: "",
-    poc: ""
+    poc: "",
+    email: "",
+    poc_phone: ""
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -22,7 +24,7 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
     const fetchDetails = async () => {
       setLoading(true);
       try {
-      const res = await apiFetch(`/api/club-admin/details?club_id=${clubId}`);
+      const res = await apiFetch(`/api/club-admin/details?club_id=${encodeURIComponent(clubId)}`);
       const data = await res.json();
       if (data.success && data.details) {
           setDetails({
@@ -33,7 +35,9 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
             recruitment_link: data.details.recruitment_link || "",
             instagram: data.details.instagram || "",
             whatsapp: data.details.whatsapp || "",
-            poc: data.details.poc || ""
+            poc: data.details.poc || "",
+            email: data.details.email || "",
+            poc_phone: data.details.poc_phone || ""
           });
         }
       } catch (err) {
@@ -77,135 +81,210 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm max-w-4xl">
-      
-      <div className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center justify-between">
-            <span className="flex items-center gap-2"><FileText className="w-4 h-4" /> Description</span>
-            <span className="text-xs font-normal text-gray-400">Markdown supported</span>
-          </label>
-          <textarea
-            name="description"
-            value={details.description}
-            onChange={handleChange}
-            placeholder="Tell us about your club..."
-            className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/50 min-h-[120px]"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-            <Target className="w-4 h-4" /> Mission Statement
-          </label>
-          <input
-            type="text"
-            name="mission"
-            value={details.mission}
-            onChange={handleChange}
-            placeholder="A short, impactful mission statement"
-            className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/50"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-              <LinkIcon className="w-4 h-4" /> Website URL
-            </label>
-            <input
-              type="url"
-              name="website"
-              value={details.website}
-              onChange={handleChange}
-              placeholder="https://..."
-              className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/50"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-              <Camera className="w-4 h-4" /> Instagram Handle
-            </label>
-            <input
-              type="text"
-              name="instagram"
-              value={details.instagram}
-              onChange={handleChange}
-              placeholder="e.g. @vitcc_club"
-              className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/50"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-              <Phone className="w-4 h-4" /> WhatsApp Group Link
-            </label>
-            <input
-              type="url"
-              name="whatsapp"
-              value={details.whatsapp}
-              onChange={handleChange}
-              placeholder="https://chat.whatsapp.com/..."
-              className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/50"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-              <User className="w-4 h-4" /> Point of Contact
-            </label>
-            <input
-              type="text"
-              name="poc"
-              value={details.poc}
-              onChange={handleChange}
-              placeholder="Name & Number"
-              className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/50"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center justify-between">
-            <span>Hiring Process / Recruitment Info</span>
-            <span className="text-xs font-normal text-gray-400">Markdown supported</span>
-          </label>
-          <textarea
-            name="hiring_process"
-            value={details.hiring_process}
-            onChange={handleChange}
-            placeholder="Describe how members can join..."
-            className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/50 min-h-[100px]"
-          />
-        </div>
+    <div className="max-w-5xl mx-auto space-y-6 pb-20">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Recruitment Form Link</label>
-          <input
-            type="url"
-            name="recruitment_link"
-            value={details.recruitment_link}
-            onChange={handleChange}
-            placeholder="Google Form, VTOP Link, etc."
-            className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/50"
-          />
+        {/* Left Column: Core Info & Recruitment */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Basic Information Card */}
+          <div className="bg-white dark:bg-gray-900 midnight:bg-[#0a0a0a] border border-gray-100 dark:border-gray-800 midnight:border-white/5 rounded-2xl p-6 shadow-sm transition-all duration-200 hover:shadow-md">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 midnight:text-white mb-6 flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 midnight:bg-blue-500/10 flex items-center justify-center">
+                <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400 midnight:text-blue-400" />
+              </div>
+              Basic Information
+            </h3>
+            
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 midnight:text-gray-400 mb-1.5 flex items-center gap-2">
+                  <Target className="w-4 h-4 text-gray-400" /> Mission Statement
+                </label>
+                <input
+                  type="text"
+                  name="mission"
+                  value={details.mission}
+                  onChange={handleChange}
+                  placeholder="A short, impactful mission statement"
+                  className="w-full bg-gray-50/50 dark:bg-black/50 midnight:bg-black border border-gray-200 dark:border-gray-800 midnight:border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none transition-all duration-150 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 midnight:text-gray-400 mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-gray-400" /> Description
+                  </span>
+                  <span className="text-xs font-normal text-gray-400 bg-gray-100 dark:bg-gray-800 midnight:bg-white/5 px-2 py-0.5 rounded-full">Markdown</span>
+                </label>
+                <textarea
+                  name="description"
+                  value={details.description}
+                  onChange={handleChange}
+                  placeholder="Tell us about your club..."
+                  className="w-full bg-gray-50/50 dark:bg-black/50 midnight:bg-black border border-gray-200 dark:border-gray-800 midnight:border-white/10 rounded-xl px-4 py-3 text-sm outline-none transition-all duration-150 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 min-h-[160px]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Recruitment Card */}
+          <div className="bg-white dark:bg-gray-900 midnight:bg-[#0a0a0a] border border-gray-100 dark:border-gray-800 midnight:border-white/5 rounded-2xl p-6 shadow-sm transition-all duration-200 hover:shadow-md">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 midnight:text-white mb-6 flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-900/20 midnight:bg-emerald-500/10 flex items-center justify-center">
+                <User className="w-4 h-4 text-emerald-600 dark:text-emerald-400 midnight:text-emerald-400" />
+              </div>
+              Recruitment
+            </h3>
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 midnight:text-gray-400 mb-1.5 flex items-center justify-between">
+                  <span>Hiring Process</span>
+                  <span className="text-xs font-normal text-gray-400 bg-gray-100 dark:bg-gray-800 midnight:bg-white/5 px-2 py-0.5 rounded-full">Markdown</span>
+                </label>
+                <textarea
+                  name="hiring_process"
+                  value={details.hiring_process}
+                  onChange={handleChange}
+                  placeholder="Describe how members can join..."
+                  className="w-full bg-gray-50/50 dark:bg-black/50 midnight:bg-black border border-gray-200 dark:border-gray-800 midnight:border-white/10 rounded-xl px-4 py-3 text-sm outline-none transition-all duration-150 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 min-h-[120px]"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 midnight:text-gray-400 mb-1.5 flex items-center gap-2">
+                  <LinkIcon className="w-4 h-4 text-gray-400" /> Application Form Link
+                </label>
+                <input
+                  type="url"
+                  name="recruitment_link"
+                  value={details.recruitment_link}
+                  onChange={handleChange}
+                  placeholder="Google Form, Typeform, etc."
+                  className="w-full bg-gray-50/50 dark:bg-black/50 midnight:bg-black border border-gray-200 dark:border-gray-800 midnight:border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none transition-all duration-150 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="pt-4 flex items-center justify-between border-t border-gray-100 dark:border-gray-800">
-          <div>
-            {message.text && (
-              <span className={`text-sm font-medium ${message.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-                {message.text}
-              </span>
-            )}
+        {/* Right Column: Contact & Socials */}
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-gray-900 midnight:bg-[#0a0a0a] border border-gray-100 dark:border-gray-800 midnight:border-white/5 rounded-2xl p-6 shadow-sm transition-all duration-200 hover:shadow-md">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 midnight:text-white mb-6 flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-purple-50 dark:bg-purple-900/20 midnight:bg-purple-500/10 flex items-center justify-center">
+                <LinkIcon className="w-4 h-4 text-purple-600 dark:text-purple-400 midnight:text-purple-400" />
+              </div>
+              Social & Contact
+            </h3>
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 midnight:text-gray-400 mb-1.5 flex items-center gap-2">
+                  <LinkIcon className="w-4 h-4 text-gray-400" /> Website
+                </label>
+                <input
+                  type="url"
+                  name="website"
+                  value={details.website}
+                  onChange={handleChange}
+                  placeholder="https://..."
+                  className="w-full bg-gray-50/50 dark:bg-black/50 midnight:bg-black border border-gray-200 dark:border-gray-800 midnight:border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none transition-all duration-150 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 midnight:text-gray-400 mb-1.5 flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-gray-400" /> Instagram
+                </label>
+                <input
+                  type="text"
+                  name="instagram"
+                  value={details.instagram}
+                  onChange={handleChange}
+                  placeholder="@vitcc_club"
+                  className="w-full bg-gray-50/50 dark:bg-black/50 midnight:bg-black border border-gray-200 dark:border-gray-800 midnight:border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none transition-all duration-150 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 midnight:text-gray-400 mb-1.5 flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-gray-400" /> WhatsApp Group
+                </label>
+                <input
+                  type="url"
+                  name="whatsapp"
+                  value={details.whatsapp}
+                  onChange={handleChange}
+                  placeholder="https://chat.whatsapp.com/..."
+                  className="w-full bg-gray-50/50 dark:bg-black/50 midnight:bg-black border border-gray-200 dark:border-gray-800 midnight:border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none transition-all duration-150 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
+                />
+              </div>
+              
+              <div className="pt-2 border-t border-gray-100 dark:border-gray-800 midnight:border-white/5"></div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 midnight:text-gray-400 mb-1.5 flex items-center gap-2">
+                  <User className="w-4 h-4 text-gray-400" /> Point of Contact
+                </label>
+                <input
+                  type="text"
+                  name="poc"
+                  value={details.poc}
+                  onChange={handleChange}
+                  placeholder="John Doe"
+                  className="w-full bg-gray-50/50 dark:bg-black/50 midnight:bg-black border border-gray-200 dark:border-gray-800 midnight:border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none transition-all duration-150 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 midnight:text-gray-400 mb-1.5 flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-gray-400" /> Contact Number
+                </label>
+                <input
+                  type="tel"
+                  name="poc_phone"
+                  value={details.poc_phone}
+                  onChange={handleChange}
+                  placeholder="+91..."
+                  className="w-full bg-gray-50/50 dark:bg-black/50 midnight:bg-black border border-gray-200 dark:border-gray-800 midnight:border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none transition-all duration-150 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 midnight:text-gray-400 mb-1.5 flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-gray-400" /> Club Email
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={details.email}
+                  onChange={handleChange}
+                  placeholder="club@vit.ac.in"
+                  className="w-full bg-gray-50/50 dark:bg-black/50 midnight:bg-black border border-gray-200 dark:border-gray-800 midnight:border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none transition-all duration-150 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20"
+                />
+              </div>
+            </div>
           </div>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium rounded-xl flex items-center justify-center gap-2 shadow-sm"
-          >
-            {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-            Save Details
-          </button>
         </div>
+      </div>
+
+      {/* Floating Action Bar */}
+      <div className="fixed bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 md:translate-x-0 md:left-auto md:right-8 z-40 bg-white/90 dark:bg-gray-900/90 midnight:bg-[#111]/90 backdrop-blur-md border border-gray-200 dark:border-gray-700 midnight:border-white/10 p-3 rounded-2xl shadow-xl shadow-indigo-500/10 flex items-center gap-4 transition-all animate-in fade-in slide-in-from-bottom-4">
+        {message.text && (
+          <span className={`text-sm font-medium px-2 ${message.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+            {message.text}
+          </span>
+        )}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0 text-white font-medium rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all duration-150"
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Save Changes
+        </button>
       </div>
     </div>
   );

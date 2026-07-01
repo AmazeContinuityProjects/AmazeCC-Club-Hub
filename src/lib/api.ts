@@ -17,6 +17,13 @@ export function apiFetch(path: string, init: RequestInit = {}) {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
+  if (typeof window !== "undefined") {
+    const activeClubId = localStorage.getItem("active_club_id");
+    if (activeClubId && !headers.has("X-Club-Id")) {
+      headers.set("X-Club-Id", activeClubId);
+    }
+  }
+
   return fetch(apiUrl(path), {
     ...init,
     headers,

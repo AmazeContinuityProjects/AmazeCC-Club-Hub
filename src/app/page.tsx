@@ -24,11 +24,22 @@ export default function Home() {
         const storedRoles = JSON.parse(localStorage.getItem("club_roles") || "[]");
         setRoles(storedRoles);
         if (storedRoles.length > 0) {
-          setActiveClubId(storedRoles[0].club_id);
+          const storedActive = localStorage.getItem("active_club_id");
+          if (storedActive && storedRoles.find((r: any) => r.club_id === storedActive)) {
+            setActiveClubId(storedActive);
+          } else {
+            setActiveClubId(storedRoles[0].club_id);
+          }
         }
       } catch (e) { }
     }
   }, []);
+
+  useEffect(() => {
+    if (activeClubId) {
+      localStorage.setItem("active_club_id", activeClubId);
+    }
+  }, [activeClubId]);
 
   const handleLogin = (newToken: string, newRoles: any[]) => {
     setToken(newToken);

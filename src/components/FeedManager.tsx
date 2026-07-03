@@ -56,7 +56,7 @@ export default function FeedManager({ clubId }: { clubId: string }) {
   const fetchEvents = useCallback(async () => {
     setEventsLoading(true);
     try {
-      const res = await fetch("/api/events");
+      const res = await apiFetch("/api/events");
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) setEvents(data);

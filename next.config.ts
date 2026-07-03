@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
-const API_TARGET = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-
 const nextConfig: NextConfig = {
+  output: 'export',
+  trailingSlash: true,
   transpilePackages: ['@amazecontinuityprojects/amazeui'],
   webpack: (config) => {
     config.resolve.alias = {
@@ -10,14 +10,6 @@ const nextConfig: NextConfig = {
       'react-native$': require.resolve('react-native-web'),
     };
     return config;
-  },
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${API_TARGET}/api/:path*`,
-      },
-    ];
   },
 };
 

@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Card, CardHeader, CardTitle, CardContent, Input, Textarea, Label, Button, View, Text } from "@amazecontinuityprojects/amazeui";
+import { Card, CardHeader, CardTitle, CardContent, Input, Textarea, Label, Fab, Button, View, Text, IconBadge, Alert } from "@amazecontinuityprojects/amazeui";
 import { apiFetch } from "@/lib/api";
-import { Save, Loader2, Link as LinkIcon, Camera, Phone, Target, FileText, User, Mail } from "lucide-react";
+import { Save, Loader2, Link as LinkIcon, Camera, Phone, Target, FileText, User, Mail, CheckCircle2, XCircle } from "lucide-react";
 
 export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
   const [details, setDetails] = useState({
@@ -58,7 +58,7 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
   };
 
   if (loading) {
-    return <View className="p-8 flex flex-row justify-center"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></View>;
+    return <View className="p-8 flex flex-row justify-center"><Loader2 className="w-8 h-8 animate-spin text-info" /></View>;
   }
 
   return (
@@ -69,7 +69,7 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
             <CardHeader>
               <CardTitle>
                 <View className="flex flex-row items-center gap-2">
-                  <FileText className="w-4 h-4 text-blue-600" />
+                  <IconBadge color="blue" size="sm"><FileText className="w-4 h-4" /></IconBadge>
                   Basic Information
                 </View>
               </CardTitle>
@@ -97,7 +97,7 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
             <CardHeader>
               <CardTitle>
                 <View className="flex flex-row items-center gap-2">
-                  <User className="w-4 h-4 text-emerald-600" />
+                  <IconBadge color="emerald" size="sm"><User className="w-4 h-4" /></IconBadge>
                   Recruitment
                 </View>
               </CardTitle>
@@ -125,7 +125,7 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
             <CardHeader>
               <CardTitle>
                 <View className="flex flex-row items-center gap-2">
-                  <LinkIcon className="w-4 h-4 text-purple-600" />
+                  <IconBadge color="purple" size="sm"><LinkIcon className="w-4 h-4" /></IconBadge>
                   Social & Contact
                 </View>
               </CardTitle>
@@ -162,17 +162,30 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
         </View>
       </View>
 
-      <View className="fixed bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 md:translate-x-0 md:left-auto md:right-8 z-40 bg-card/90 backdrop-blur-md border border-border p-3 rounded-2xl shadow-xl flex flex-row items-center gap-4">
-        {message.text && (
-          <Text className={`text-sm font-medium px-2 ${message.type === 'success' ? 'text-success' : 'text-danger'}`}>
-            {message.text}
-          </Text>
-        )}
-        <Button onClick={handleSave} disabled={saving} variant="default">
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          Save Changes
-        </Button>
-      </View>
+      {message.text && (
+        <View className="fixed bottom-24 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
+          <View className={`flex flex-row items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl border backdrop-blur-xl ${
+            message.type === 'success'
+              ? 'bg-success-surface/90 border-success/30 text-success-foreground'
+              : 'bg-danger-surface/90 border-danger/30 text-danger'
+          }`}>
+            {message.type === 'success'
+              ? <CheckCircle2 className="w-4 h-4 shrink-0" />
+              : <XCircle className="w-4 h-4 shrink-0" />
+            }
+            <Text className="text-sm font-medium">{message.text}</Text>
+          </View>
+        </View>
+      )}
+
+      <Fab
+        icon={saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+        label="Save Changes"
+        onPress={handleSave}
+        disabled={saving}
+        position="bottom-right"
+        variant="primary"
+      />
     </View>
   );
 }

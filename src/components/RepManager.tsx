@@ -1,145 +1,218 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Card, CardHeader, CardTitle, CardContent, Input, Label, Button, Select, View, Text } from "@amazecontinuityprojects/amazeui";
+import { Card, CardContent, Input, Fab, Button, View, Text, EmptyState, Timeline, TimelineItem, TimelineCard, TimelineDate, TimelineTitle, TimelineActions, OptionPicker, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@amazecontinuityprojects/amazeui";
 import { apiFetch } from "@/lib/api";
-import { Trash2, UserPlus, Shield, User, Users, Loader2 } from "lucide-react";
+import { Plus, Trash2, Loader2, UserPlus, Shield, User, CheckCircle2, XCircle } from "lucide-react";
+
+interface Rep {
+  id: number;
+  vtop_id: string;
+  role: string;
+  created_at: string;
+}
 
 export default function RepManager({ clubId }: { clubId: string }) {
-  const [reps, setReps] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [newVtopId, setNewVtopId] = useState("");
+  const [reps, setReps] = useState<Rep[]>([]);
+  const [newRep, setNewRep] = useState("");
   const [newRole, setNewRole] = useState("representative");
+  const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [message, setMessage] = useState({ type: "", text: "" });
 
-  const fetchReps = async () => {
-    setLoading(true);
+  useEffect(() => {
+    const fetchReps = async () => {
+      try {
+        const res = await apiFetch(`/api/club-admin/reps?club_id=${encodeURIComponent(clubId)}`);
+        const data = await res.json();
+        if (data.success) setReps(data.reps || []);
+      } catch (err) { console.error("Failed to load reps"); }
+      finally { setLoading(false); }
+    };
+    fetchReps();
+  }, [clubId]);
+
+  const handleAdd = async () => {
+    if (!newRep.trim()) return;
+    setAdding(true);
+    setMessage({ type: "", text: "" });
     try {
-      const res = await apiFetch(`/api/club-admin/reps?club_id=${encodeURIComponent(clubId)}`);
-      const data = await res.json();
-      if (data.success) setReps(data.reps || []);
-    } catch (err: any) { setError(err.message || "Failed to load reps"); }
-    finally { setLoading(false); }
-  };
-
-  useEffect(() => { fetchReps(); }, [clubId]);
-
-  const handleAddRep = async () => {
-    if (!newVtopId.trim()) return;
-    setAdding(true); setError("");
-    try {
-      const res = await apiFetch('/api/club-admin/reps', {
-        method: "POST", body: JSON.stringify({ vtop_id: newVtopId.trim(), role: newRole }),
+      const res = await apiFetch("/api/club-admin/reps", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ club_id: clubId, vtop_id: newRep.trim(), role: newRole })
       });
       const data = await res.json();
-      if (data.success) { setNewVtopId(""); setNewRole("representative"); fetchReps(); }
-      else setError(data.error || "Failed to add rep");
-    } catch (err: any) { setError(err.message || "An error occurred"); }
-    finally { setAdding(false); }
+      if (data.success) {
+        setReps(prev => [...prev, { id: Date.now(), vtop_id: newRep.trim(), role: newRole, created_at: new Date().toISOString() }]);
+        setNewRep("");
+        setNewRole("representative");
+        setShowForm(false);
+        setMessage({ type: "success", text: "Representative added" });
+      } else setMessage({ type: "error", text: data.error || "Failed to add rep" });
+    } catch (err: any) { setMessage({ type: "error", text: err.message }); }
+    finally {
+      setAdding(false);
+      setTimeout(() => setMessage({ type: "", text: "" }), 4000);
+    }
   };
 
-  const handleRemoveRep = async (vtop_id: string) => {
-    if (!confirm(`Are you sure you want to remove ${vtop_id}?`)) return;
+  const handleDelete = async (vtop_id: string) => {
+    setMessage({ type: "", text: "" });
     try {
       const res = await apiFetch(`/api/club-admin/reps?vtop_id=${encodeURIComponent(vtop_id)}`, { method: "DELETE" });
       const data = await res.json();
-      if (data.success) fetchReps(); else setError(data.error || "Failed to remove rep");
-    } catch (err: any) { setError(err.message || "An error occurred"); }
+      if (data.success) {
+        setReps(prev => prev.filter(r => r.vtop_id !== vtop_id));
+        setMessage({ type: "success", text: "Representative removed" });
+      } else setMessage({ type: "error", text: data.error || "Failed to remove rep" });
+    } catch (err: any) { setMessage({ type: "error", text: err.message }); }
+    finally {
+      setDeleting(null);
+      setTimeout(() => setMessage({ type: "", text: "" }), 4000);
+    }
   };
 
-  return (
-    <View className="space-y-8 max-w-4xl mx-auto pb-24">
-      <Card className="relative overflow-hidden">
-        <View className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
-          <UserPlus className="w-32 h-32" />
-        </View>
-        <CardHeader>
-          <View className="flex flex-row items-center gap-3 relative z-10">
-            <UserPlus className="w-5 h-5 text-blue-600" />
-            <CardTitle>Add Representative</CardTitle>
-          </View>
-        </CardHeader>
-        <CardContent>
-          <View className="flex flex-col sm:flex-row gap-4 relative z-10">
-            <View className="flex-1">
-              <Label className="text-xs text-muted-foreground mb-1.5 ml-1">VTOP Registration Number</Label>
-              <Input placeholder="e.g. 21BCE0000" className="font-mono uppercase" value={newVtopId} onChange={(e: any) =>  setNewVtopId(e.target.value)} />
-            </View>
-            <View className="sm:w-48">
-              <Label className="text-xs text-muted-foreground mb-1.5 ml-1">Access Level</Label>
-              <Select value={newRole} onChange={setNewRole} options={[
-                { value: "representative", label: "Representative" },
-                { value: "super-club-rep", label: "Super Rep" },
-              ]} />
-            </View>
-            <View className="flex flex-row items-end">
-              <Button onClick={handleAddRep} disabled={adding || !newVtopId.trim()} variant="default">
-                {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : "Grant Access"}
-              </Button>
-            </View>
-          </View>
-          {error && (
-            <View className="mt-4 p-3 bg-danger-surface border border-danger/30 rounded-xl relative z-10">
-              <Text className="text-danger text-sm font-medium">{error}</Text>
-            </View>
-          )}
-        </CardContent>
-      </Card>
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days === 0) return "Added today";
+    if (days === 1) return "Added yesterday";
+    if (days < 7) return `Added ${days} days ago`;
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
 
-      <Card className="overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between bg-muted/30">
-          <View className="flex flex-row items-center gap-2">
-            <Users className="w-5 h-5 text-indigo-500" />
-            <CardTitle>Current Representatives</CardTitle>
+  if (loading) {
+    return <View className="flex-1 flex items-center justify-center min-h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-info" /></View>;
+  }
+
+  return (
+    <View className="flex flex-col w-full h-full space-y-0">
+      <View className="flex flex-row items-center justify-between mb-6 shrink-0">
+        <View className="flex flex-row items-center gap-3">
+          <Text className="text-2xl font-bold tracking-tight text-foreground">Representatives</Text>
+          <View className="bg-muted/80 rounded-full px-3 py-1">
+            <Text className="text-xs font-semibold text-muted-foreground">{reps.length} rep{reps.length !== 1 ? "s" : ""}</Text>
           </View>
-          <Text className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-xs font-bold">
-            {reps.length} Total
-          </Text>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <View className="p-12 flex flex-row justify-center"><Loader2 className="w-8 h-8 animate-spin text-blue-600/50" /></View>
-          ) : reps.length === 0 ? (
-            <View className="p-12 text-center flex flex-col items-center justify-center">
-              <View className="w-16 h-16 bg-muted rounded-full flex flex-row items-center justify-center mb-4">
-                <User className="w-8 h-8 text-muted-foreground" />
-              </View>
-              <Text className="text-muted-foreground font-medium">No representatives found.</Text>
-              <Text className="text-muted-foreground/70 text-sm mt-1">Add someone above to grant them access to this club.</Text>
+        </View>
+        <Button onClick={() => setShowForm(!showForm)} variant="default" size="sm" className="gap-1.5">
+          <Plus className="w-4 h-4" /> Add Rep
+        </Button>
+      </View>
+
+      {showForm && (
+        <Card className="mb-6 shrink-0 border-info/30 bg-info-surface/5 animate-enter">
+          <CardContent className="p-4 space-y-3">
+            <View className="flex flex-col sm:flex-row gap-3">
+              <Input name="vtop_id" value={newRep}
+                onChange={(e: any) => setNewRep(e.target.value)}
+                placeholder="Registration Number" className="flex-1"
+                onKeyDown={(e: any) => e.key === "Enter" && handleAdd()} />
+              <OptionPicker
+                value={newRole}
+                onChange={setNewRole}
+                options={[
+                  { value: "representative", label: "Representative" },
+                  { value: "super-club-rep", label: "Super Rep" }
+                ]}
+                className="sm:w-40"
+              />
+              <Button onClick={handleAdd} disabled={adding || !newRep.trim()} variant="default" className="sm:w-auto">
+                {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                Add
+              </Button>
+              <Button onClick={() => { setShowForm(false); setNewRep(""); setNewRole("representative"); }} variant="ghost" className="sm:w-auto">Cancel</Button>
             </View>
-          ) : (
-            <View className="divide-y divide-border">
-              {reps.map((rep) => (
-                <View key={rep.id} className="p-5 sm:px-8 flex flex-row items-center justify-between hover:bg-muted/30 transition-colors group">
-                  <View className="flex flex-row items-center gap-4">
-                    <View className={`w-12 h-12 rounded-full flex flex-row items-center justify-center ${rep.role === 'super-club-rep' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'}`}>
-                      {rep.role === 'super-club-rep' ? <Shield className="w-6 h-6" /> : <User className="w-6 h-6" />}
-                    </View>
-                    <View>
-                      <Text className="font-bold text-foreground text-lg font-mono">{rep.vtop_id}</Text>
-                      <View className="flex flex-row items-center gap-1.5 mt-1">
-                        {rep.role === 'super-club-rep' ? (
-                          <Text className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-500 font-bold uppercase tracking-wider text-[10px] bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800/50">
-                            Super Representative
-                          </Text>
-                        ) : (
-                          <Text className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider text-[10px] bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800/50">
-                            Representative
-                          </Text>
-                        )}
+          </CardContent>
+        </Card>
+      )}
+
+      <View className="flex-1">
+        {reps.length === 0 ? (
+          <View className="flex items-center justify-center pt-12">
+            <EmptyState icon={<Shield className="w-8 h-8" />}
+              title="No representatives"
+              description="Add registration numbers to grant admin access">
+              <Button variant="secondary" onClick={() => setShowForm(true)} className="mt-2">
+                <Plus className="w-4 h-4" /> Add First Rep
+              </Button>
+            </EmptyState>
+          </View>
+        ) : (
+          <Timeline className="w-full max-w-2xl">
+            {reps.map((rep, i) => (
+              <TimelineItem key={rep.vtop_id} dotColor={i % 2 === 0 ? "indigo" : "purple"}>
+                <TimelineCard>
+                  <View className="flex flex-row items-start justify-between gap-2">
+                    <View className="flex flex-row items-center gap-3 min-w-0">
+                      <View className="w-9 h-9 bg-indigo-50 dark:bg-indigo-900/30 rounded-full flex flex-row items-center justify-center shrink-0">
+                        <User className="w-4 h-4 text-indigo-500" />
+                      </View>
+                      <View className="min-w-0">
+                        <View className="flex flex-row items-center gap-2">
+                          <TimelineTitle>{rep.vtop_id}</TimelineTitle>
+                          {rep.role === "super-club-rep" && (
+                            <View className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-full px-2 py-0.5">
+                              <Text className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Super</Text>
+                            </View>
+                          )}
+                        </View>
+                        <TimelineDate>{formatDate(rep.created_at)}</TimelineDate>
                       </View>
                     </View>
+                    <Button variant="ghost" size="icon"
+                      onClick={() => setDeleting(rep.vtop_id)}
+                      className="text-muted-foreground hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity -mt-1 -mr-2 h-7 w-7 shrink-0">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
                   </View>
-                  <Button onClick={() => handleRemoveRep(rep.vtop_id)} variant="ghost" size="icon" className="text-muted-foreground hover:text-danger hover:bg-danger-surface rounded-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100" title="Remove Representative">
-                    <Trash2 className="w-5 h-5" />
-                  </Button>
-                </View>
-              ))}
-            </View>
-          )}
-        </CardContent>
-      </Card>
+                </TimelineCard>
+              </TimelineItem>
+            ))}
+          </Timeline>
+        )}
+      </View>
+
+      {message.text && (
+        <View className="fixed bottom-24 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
+          <View className={`flex flex-row items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl border backdrop-blur-xl ${
+            message.type === "success"
+              ? "bg-success-surface/90 border-success/30 text-success-foreground"
+              : "bg-danger-surface/90 border-danger/30 text-danger"
+          }`}>
+            {message.type === "success"
+              ? <CheckCircle2 className="w-4 h-4 shrink-0" />
+              : <XCircle className="w-4 h-4 shrink-0" />
+            }
+            <Text className="text-sm font-medium">{message.text}</Text>
+          </View>
+        </View>
+      )}
+
+      <Fab
+        icon={<UserPlus className="w-5 h-5" />}
+        label="Add Rep"
+        onPress={() => setShowForm(!showForm)}
+        position="bottom-right"
+        variant="primary"
+      />
+
+      <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Representative</DialogTitle>
+            <DialogDescription>Remove {deleting} from the rep list? They will lose admin access.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
+            <Button variant="danger" onClick={() => deleting && handleDelete(deleting)}>
+              <Trash2 className="w-4 h-4" /> Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </View>
   );
 }
-

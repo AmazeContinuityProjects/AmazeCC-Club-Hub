@@ -1,201 +1,281 @@
 "use client";
-import { useState, useEffect } from "react";
-import { Card, CardHeader, CardTitle, CardContent, Input, Textarea, Label, Button, Select, View, Text } from "@amazecontinuityprojects/amazeui";
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, Input, Textarea, Button, View, Text, IconBadge, EmptyState, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, Fab, Timeline, TimelineItem, TimelineCard, TimelineDate, TimelineTitle, TimelineDescription, TimelineActions } from "@amazecontinuityprojects/amazeui";
 import { apiFetch } from "@/lib/api";
-import { Plus, Trash2, Save, Layout, Calendar, Star, Palette } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Plus, Trash2, Loader2, Globe, Layout, Save, Target, CalendarDays, CheckCircle2, XCircle, Sparkles } from "lucide-react";
+
+interface LandingPageItem {
+  name: string;
+  description: string;
+  link?: string;
+  date?: string;
+}
+
+const dotColors = ["purple", "indigo", "blue", "emerald"] as const;
+const eventDotColors = ["amber", "pink", "emerald", "indigo"] as const;
 
 export default function LandingPageBuilder({ clubId }: { clubId: string }) {
-  const [themeColor, setThemeColor] = useState("#3B82F6");
-  const [themeMode, setThemeMode] = useState("light");
-  const [showcaseProjects, setShowcaseProjects] = useState<any[]>([]);
-  const [popularEvents, setPopularEvents] = useState<any[]>([]);
+  const [projects, setProjects] = useState<LandingPageItem[]>([]);
+  const [events, setEvents] = useState<LandingPageItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState({ type: "", text: "" });
+  const [deleting, setDeleting] = useState<{ index: number; type: "project" | "event" } | null>(null);
+  const [showForm, setShowForm] = useState<"project" | "event" | null>(null);
+  const [form, setForm] = useState({ name: "", description: "", link: "", date: "" });
 
-  useEffect(() => { if (clubId) fetchLandingPage(); }, [clubId]);
-
-  const fetchLandingPage = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const res = await apiFetch(`/api/club-admin/landing-page?club_id=${encodeURIComponent(clubId)}`);
       const data = await res.json();
       if (data.success && data.landingPage) {
-        const lp = data.landingPage;
-        if (lp.theme) { setThemeColor(lp.theme.primary_color || "#3B82F6"); setThemeMode(lp.theme.mode || "light"); }
-        setShowcaseProjects(lp.showcase_projects || []);
-        setPopularEvents(lp.popular_events || []);
+        setProjects(data.landingPage.showcase_projects || []);
+        setEvents(data.landingPage.popular_events || []);
       }
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  };
+    } catch (err) { console.error("Failed to load landing page data"); }
+  }, [clubId]);
 
-  const handleSave = async () => {
-    setIsSaving(true);
+  useEffect(() => {
+    const load = async () => { setLoading(true); await fetchData(); setLoading(false); };
+    load();
+  }, [fetchData]);
+
+  const saveAll = async () => {
+    setSaving(true);
+    setMessage({ type: "", text: "" });
     try {
       const res = await apiFetch("/api/club-admin/landing-page", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          theme: { primary_color: themeColor, mode: themeMode },
-          showcase_projects: showcaseProjects, popular_events: popularEvents
-        })
+        body: JSON.stringify({ club_id: clubId, showcase_projects: projects, popular_events: events })
       });
       const data = await res.json();
-      if (data.success) alert("Landing page settings saved successfully!");
-      else alert(data.error || "Failed to save");
-    } catch (err) { alert("Error saving settings"); }
-    finally { setIsSaving(false); }
+      if (data.success) setMessage({ type: "success", text: "Landing page saved!" });
+      else setMessage({ type: "error", text: data.error || "Failed to save" });
+    } catch (err: any) { setMessage({ type: "error", text: err.message }); }
+    finally {
+      setSaving(false);
+      setTimeout(() => setMessage({ type: "", text: "" }), 4000);
+    }
   };
 
-  const addProject = () => setShowcaseProjects([...showcaseProjects, { title: "", description: "", link: "", image_url: "" }]);
-  const updateProject = (index: number, field: string, value: string) => {
-    const updated = [...showcaseProjects]; updated[index][field] = value; setShowcaseProjects(updated);
-  };
-  const removeProject = (index: number) => setShowcaseProjects(showcaseProjects.filter((_, i) => i !== index));
-  const addEvent = () => setPopularEvents([...popularEvents, { name: "", year: "", description: "" }]);
-  const updateEvent = (index: number, field: string, value: string) => {
-    const updated = [...popularEvents]; updated[index][field] = value; setPopularEvents(updated);
-  };
-  const removeEvent = (index: number) => setPopularEvents(popularEvents.filter((_, i) => i !== index));
+  const addItem = () => {
+    if (!form.name.trim() || !form.description.trim()) return;
+    const item: LandingPageItem = { name: form.name, description: form.description };
+    if (form.link) item.link = form.link;
+    if (form.date) item.date = form.date;
 
-  if (loading) return <Text className="text-muted-foreground animate-pulse">Loading settings...</Text>;
+    if (showForm === "project") setProjects(prev => [item, ...prev]);
+    else setEvents(prev => [item, ...prev]);
+
+    setForm({ name: "", description: "", link: "", date: "" });
+    setShowForm(null);
+  };
+
+  const removeItem = () => {
+    if (!deleting) return;
+    if (deleting.type === "project") setProjects(prev => prev.filter((_, i) => i !== deleting.index));
+    else setEvents(prev => prev.filter((_, i) => i !== deleting.index));
+    setDeleting(null);
+  };
+
+  const formatDate = (dateStr: string) => {
+    try { return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); }
+    catch { return dateStr; }
+  };
+
+  if (loading) {
+    return <View className="flex-1 flex items-center justify-center min-h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-info" /></View>;
+  }
 
   return (
-    <View className="max-w-4xl mx-auto pb-24 space-y-8">
-      <Card>
-        <CardHeader>
+    <View className="flex flex-col w-full h-full space-y-0">
+        <View className="flex flex-row items-center justify-between mb-6 shrink-0">
           <View className="flex flex-row items-center gap-3">
-            <Palette className="w-5 h-5 text-blue-600" />
-            <CardTitle>Theme Identity</CardTitle>
-          </View>
-        </CardHeader>
-        <CardContent>
-          <View className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <View>
-              <Label className="mb-2">Primary Color</Label>
-              <View className="flex flex-row items-center gap-3">
-                <View className="relative w-12 h-12 rounded-xl overflow-hidden shadow-inner border border-border">
-                  <Input type="color" value={themeColor} onChange={(e: any) =>  setThemeColor(e.target.value)} className="absolute -inset-2 w-16 h-16 cursor-pointer p-0 border-none" />
-                </View>
-                <Input value={themeColor} onChange={(e: any) =>  setThemeColor(e.target.value)} className="w-32 uppercase font-mono" />
-              </View>
-            </View>
-            <View>
-              <Label className="mb-2">Preferred Mode</Label>
-              <Select value={themeMode} onChange={setThemeMode} options={[
-                { value: "light", label: "Light Mode" },
-                { value: "dark", label: "Dark Mode" },
-                { value: "system", label: "System Default" },
-              ]} />
+            <Text className="text-2xl font-bold tracking-tight text-foreground">Landing Page</Text>
+            <View className="bg-muted/80 rounded-full px-3 py-1 flex flex-row items-center gap-2">
+              <Sparkles className="w-3 h-3 text-muted-foreground" />
+              <Text className="text-xs font-semibold text-muted-foreground">{projects.length + events.length} items</Text>
             </View>
           </View>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <View className="flex flex-row flex-wrap items-center justify-between gap-4 w-full">
-            <View className="flex flex-row items-center gap-3">
-              <Star className="w-5 h-5 text-purple-600" />
-              <CardTitle>Showcase Projects</CardTitle>
-            </View>
-            <Button onClick={addProject} variant="ghost" className="text-purple-600 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/40">
-              <Plus className="w-4 h-4" /> Add Project
+          <View className="flex flex-row items-center gap-2">
+            <Button onClick={() => setShowForm(showForm === "event" ? null : "event")}
+              variant={showForm === "event" ? "default" : "secondary"} size="sm" className="gap-1.5">
+              <CalendarDays className="w-4 h-4" /> Event
+            </Button>
+            <Button onClick={() => setShowForm(showForm === "project" ? null : "project")}
+              variant={showForm === "project" ? "default" : "secondary"} size="sm" className="gap-1.5">
+              <Plus className="w-4 h-4" /> Project
             </Button>
           </View>
-        </CardHeader>
-        <CardContent>
-          {showcaseProjects.length === 0 ? (
-            <View className="text-center py-10 bg-muted/30 rounded-2xl border border-dashed border-border">
-              <Text className="text-muted-foreground font-medium">No projects added yet. Showcase your club's best work!</Text>
-            </View>
-          ) : (
-            <View className="space-y-4">
-              <AnimatePresence>
-                {showcaseProjects.map((proj, idx) => (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} key={idx} className="p-5 bg-muted/30 rounded-2xl border border-border relative group transition-all hover:border-purple-200 dark:hover:border-purple-900/50">
-                    <Button onClick={() => removeProject(idx)} variant="ghost" size="icon" className="absolute top-4 right-4 text-muted-foreground hover:text-danger hover:bg-danger-surface p-2 rounded-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                    <View className="grid grid-cols-1 sm:grid-cols-2 gap-4 pr-10">
-                      <View>
-                        <Label className="text-xs text-muted-foreground mb-1">Title</Label>
-                        <Input placeholder="Project Title" value={proj.title} onChange={(e: any) =>  updateProject(idx, "title", e.target.value)} />
-                      </View>
-                      <View>
-                        <Label className="text-xs text-muted-foreground mb-1">Link</Label>
-                        <Input type="url" placeholder="Project Link (e.g. GitHub)" value={proj.link} onChange={(e: any) =>  updateProject(idx, "link", e.target.value)} />
-                      </View>
-                      <View className="sm:col-span-2">
-                        <Label className="text-xs text-muted-foreground mb-1">Image URL</Label>
-                        <Input type="url" placeholder="Image URL (Optional)" value={proj.image_url} onChange={(e: any) =>  updateProject(idx, "image_url", e.target.value)} />
-                      </View>
-                      <View className="sm:col-span-2">
-                        <Label className="text-xs text-muted-foreground mb-1">Description</Label>
-                        <Textarea placeholder="Short Description" value={proj.description} onChange={(e: any) =>  updateProject(idx, "description", e.target.value)} className="h-24 resize-none" />
-                      </View>
-                    </View>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </View>
-          )}
-        </CardContent>
-      </Card>
+        </View>
 
-      <Card>
-        <CardHeader>
-          <View className="flex flex-row flex-wrap items-center justify-between gap-4 w-full">
-            <View className="flex flex-row items-center gap-3">
-              <Calendar className="w-5 h-5 text-pink-600" />
-              <CardTitle>Popular Events</CardTitle>
+      {showForm && (
+        <Card className="mb-6 shrink-0 border-info/30 bg-info-surface/5 animate-enter">
+          <CardContent className="p-4 space-y-4">
+            <Text className="text-sm font-semibold text-foreground flex flex-row items-center gap-2">
+              {showForm === "project" ? <Target className="w-4 h-4 text-purple-500" /> : <CalendarDays className="w-4 h-4 text-amber-500" />}
+              New {showForm === "project" ? "Project" : "Event"}
+            </Text>
+            <View className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input name="name" value={form.name}
+                onChange={(e: any) => setForm(p => ({ ...p, name: e.target.value }))}
+                placeholder="Name *" required />
+              {showForm === "event" && (
+                <Input type="date" name="date" value={form.date}
+                  onChange={(e: any) => setForm(p => ({ ...p, date: e.target.value }))}
+                  placeholder="Date" />
+              )}
             </View>
-            <Button onClick={addEvent} variant="ghost" className="text-pink-600 bg-pink-50 dark:bg-pink-900/20 hover:bg-pink-100 dark:hover:bg-pink-900/40">
-              <Plus className="w-4 h-4" /> Add Event
-            </Button>
+            <Textarea name="description" value={form.description}
+              onChange={(e: any) => setForm(p => ({ ...p, description: e.target.value }))}
+              placeholder="Description *" required className="min-h-[80px]" />
+            <Input name="link" value={form.link}
+              onChange={(e: any) => setForm(p => ({ ...p, link: e.target.value }))}
+              placeholder="Link URL (optional)" />
+            <View className="flex flex-row gap-3 pt-2">
+              <Button onClick={addItem} variant="default" size="sm">
+                <Plus className="w-4 h-4" /> {showForm === "project" ? "Add Project" : "Add Event"}
+              </Button>
+              <Button onClick={() => setShowForm(null)} variant="ghost" size="sm">Cancel</Button>
+            </View>
+          </CardContent>
+        </Card>
+      )}
+
+      <View className="flex-1 space-y-10">
+        <View>
+          <View className="flex flex-row items-center gap-2 mb-4">
+            <IconBadge color="purple" size="sm"><Target className="w-4 h-4" /></IconBadge>
+            <Text className="text-lg font-bold text-foreground">Projects</Text>
+            <Text className="text-xs text-muted-foreground/60 bg-muted/50 px-2 py-0.5 rounded-full">{projects.length}</Text>
           </View>
-        </CardHeader>
-        <CardContent>
-          {popularEvents.length === 0 ? (
-            <View className="text-center py-10 bg-muted/30 rounded-2xl border border-dashed border-border">
-              <Text className="text-muted-foreground font-medium">No events added yet.</Text>
-            </View>
+          {projects.length === 0 ? (
+            <EmptyState icon={<Layout className="w-6 h-6" />}
+              title="No projects yet"
+              description="Showcase your club's work">
+              <Button variant="secondary" size="sm" onClick={() => setShowForm("project")} className="mt-2">
+                <Plus className="w-4 h-4" /> Add Project
+              </Button>
+            </EmptyState>
           ) : (
-            <View className="space-y-4">
-              <AnimatePresence>
-                {popularEvents.map((ev, idx) => (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} key={idx} className="p-5 bg-muted/30 rounded-2xl border border-border relative group transition-all hover:border-pink-200 dark:hover:border-pink-900/50">
-                    <Button onClick={() => removeEvent(idx)} variant="ghost" size="icon" className="absolute top-4 right-4 text-muted-foreground hover:text-danger hover:bg-danger-surface p-2 rounded-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                    <View className="grid grid-cols-1 sm:grid-cols-2 gap-4 pr-10">
-                      <View>
-                        <Label className="text-xs text-muted-foreground mb-1">Event Name</Label>
-                        <Input placeholder="e.g. Hackathon 2024" value={ev.name} onChange={(e: any) =>  updateEvent(idx, "name", e.target.value)} />
+            <Timeline className="w-full">
+              {projects.map((p, i) => (
+                <TimelineItem key={i} dotColor={dotColors[i % dotColors.length]}>
+                  <TimelineCard>
+                    <View className="flex flex-row items-start justify-between gap-2">
+                      <View className="flex-1 min-w-0">
+                        <TimelineTitle>{p.name}</TimelineTitle>
+                        {p.link && (
+                          <Text className="text-xs text-info mt-0.5 truncate">{p.link}</Text>
+                        )}
                       </View>
-                      <View>
-                        <Label className="text-xs text-muted-foreground mb-1">Year / Term</Label>
-                        <Input placeholder="e.g. Fall 2024" value={ev.year} onChange={(e: any) =>  updateEvent(idx, "year", e.target.value)} />
-                      </View>
-                      <View className="sm:col-span-2">
-                        <Label className="text-xs text-muted-foreground mb-1">Description</Label>
-                        <Textarea placeholder="Event Highlight Description" value={ev.description} onChange={(e: any) =>  updateEvent(idx, "description", e.target.value)} className="h-24 resize-none" />
-                      </View>
+                      <Button variant="ghost" size="icon"
+                        onClick={() => setDeleting({ index: i, type: "project" })}
+                        className="text-muted-foreground hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity -mt-1 -mr-2 h-7 w-7 shrink-0">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
                     </View>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </View>
+                    {p.description && (
+                      <TimelineDescription>{p.description}</TimelineDescription>
+                    )}
+                  </TimelineCard>
+                </TimelineItem>
+              ))}
+            </Timeline>
           )}
-        </CardContent>
-      </Card>
+        </View>
 
-      <View className="fixed bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 md:translate-x-0 md:left-auto md:right-8 z-40 bg-card/90 backdrop-blur-md border border-border p-3 rounded-2xl shadow-xl flex flex-row items-center gap-4">
-        <Button onClick={handleSave} disabled={isSaving} variant="default">
-          {isSaving ? <Text className="w-5 h-5 border-2 border-border/30 border-t-foreground rounded-full animate-spin" /> : <Save className="w-5 h-5" />}
-          Save Configuration
-        </Button>
+        <View>
+          <View className="flex flex-row items-center gap-2 mb-4">
+            <IconBadge color="amber" size="sm"><CalendarDays className="w-4 h-4" /></IconBadge>
+            <Text className="text-lg font-bold text-foreground">Events</Text>
+            <Text className="text-xs text-muted-foreground/60 bg-muted/50 px-2 py-0.5 rounded-full">{events.length}</Text>
+          </View>
+          {events.length === 0 ? (
+            <EmptyState icon={<Layout className="w-6 h-6" />}
+              title="No events yet"
+              description="Promote upcoming events">
+              <Button variant="secondary" size="sm" onClick={() => setShowForm("event")} className="mt-2">
+                <Plus className="w-4 h-4" /> Add Event
+              </Button>
+            </EmptyState>
+          ) : (
+            <Timeline className="w-full">
+              {events.map((e, i) => (
+                <TimelineItem key={i} dotColor={eventDotColors[i % eventDotColors.length]}>
+                  <TimelineCard>
+                    <View className="flex flex-row items-start justify-between gap-2">
+                      <View className="flex-1 min-w-0">
+                        <View className="flex flex-row items-center gap-2">
+                          <TimelineTitle>{e.name}</TimelineTitle>
+                        </View>
+                        {e.date && (
+                          <TimelineDate className="mt-0.5">{formatDate(e.date)}</TimelineDate>
+                        )}
+                      </View>
+                      <Button variant="ghost" size="icon"
+                        onClick={() => setDeleting({ index: i, type: "event" })}
+                        className="text-muted-foreground hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity -mt-1 -mr-2 h-7 w-7 shrink-0">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </View>
+                    {e.description && (
+                      <TimelineDescription>{e.description}</TimelineDescription>
+                    )}
+                    <TimelineActions>
+                      {e.link && (
+                        <Text className="inline-flex items-center gap-1 text-xs text-info">
+                          <Globe className="w-3 h-3" /> {e.link}
+                        </Text>
+                      )}
+                    </TimelineActions>
+                  </TimelineCard>
+                </TimelineItem>
+              ))}
+            </Timeline>
+          )}
+        </View>
       </View>
+
+      {message.text && (
+        <View className="fixed bottom-24 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
+          <View className={`flex flex-row items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl border backdrop-blur-xl ${
+            message.type === "success"
+              ? "bg-success-surface/90 border-success/30 text-success-foreground"
+              : "bg-danger-surface/90 border-danger/30 text-danger"
+          }`}>
+            {message.type === "success"
+              ? <CheckCircle2 className="w-4 h-4 shrink-0" />
+              : <XCircle className="w-4 h-4 shrink-0" />
+            }
+            <Text className="text-sm font-medium">{message.text}</Text>
+          </View>
+        </View>
+      )}
+
+      <Fab
+        icon={saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+        label="Save"
+        onPress={saveAll}
+        disabled={saving}
+        position="bottom-right"
+        variant="primary"
+      />
+
+      <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove</DialogTitle>
+            <DialogDescription>Remove this item from the list? Changes are saved when you click Save.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
+            <Button variant="danger" onClick={removeItem}>
+              <Trash2 className="w-4 h-4" /> Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </View>
   );
 }
-

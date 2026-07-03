@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Header, Title, Description, View, Text, Button, Image, Select } from "@amazecontinuityprojects/amazeui";
+import { Header, Title, Description, View, Text, Button, Image, OptionPicker } from "@amazecontinuityprojects/amazeui";
 import LoginPage from "@/components/LoginPage";
 import FeedManager from "@/components/FeedManager";
 import LandingPageBuilder from "@/components/LandingPageBuilder";
@@ -67,7 +67,7 @@ export default function Home() {
 
   return (
     <View className="min-h-screen bg-background text-foreground flex flex-col md:flex-row relative">
-      <View className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f080_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f080_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1f293710_1px,transparent_1px),linear-gradient(to_bottom,#1f293710_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none -z-10" />
+      <View className="absolute inset-0 bg-[linear-gradient(to_right,oklch(0.5_0.01_260)_1px,transparent_1px),linear-gradient(to_bottom,oklch(0.5_0.01_260)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none opacity-[0.03]" />
 
       {/* Mobile Topbar */}
       <View className="md:hidden flex flex-row items-center justify-between p-4 bg-card/80 backdrop-blur-md border-b border-border sticky top-0 z-50">
@@ -82,7 +82,7 @@ export default function Home() {
         </View>
         <View className="flex flex-row items-center gap-2 sm:gap-3">
           {roles.length > 1 && (
-            <Select value={activeClubId || ""} onChange={(v) => setActiveClubId(v)} options={roles.map(r => ({ value: r.club_id, label: r.club_id }))} className="max-w-[100px] text-xs" />
+            <OptionPicker value={activeClubId || ""} onChange={(v) => setActiveClubId(v)} options={roles.map(r => ({ value: r.club_id, label: r.club_id }))} className="max-w-[120px]" />
           )}
           <ThemeSwitcher />
           <Button onClick={handleLogout} variant="ghost" size="icon" className="text-danger">
@@ -119,7 +119,7 @@ export default function Home() {
       </View>
 
       <View className="flex-1 w-full min-h-screen md:pl-[18rem] pb-24 md:pb-6 overflow-y-auto overflow-x-hidden bg-background">
-        <Header>
+        <Header variant="accent">
           <View className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <View>
               <Title>
@@ -147,28 +147,26 @@ export default function Home() {
           </View>
         </Header>
 
-        <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full space-y-6">
-          {activeTab === "feed" && activeClubId && (
-            <View className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <FeedManager clubId={activeClubId} />
-            </View>
-          )}
-          {activeTab === "details" && activeClubId && (
-            <View className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <ClubDetailsEditor clubId={activeClubId} />
-            </View>
-          )}
-          {activeTab === "landing" && activeClubId && (
-            <View className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <LandingPageBuilder clubId={activeClubId} />
-            </View>
-          )}
-          {activeTab === "reps" && activeClubId && isSuperRep && (
-            <View className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <RepManager clubId={activeClubId} />
-            </View>
-          )}
-        </View>
+        {activeTab === "feed" && activeClubId && (
+          <View className="flex-1 px-4 sm:px-6 lg:px-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <FeedManager clubId={activeClubId} />
+          </View>
+        )}
+        {activeTab === "landing" && activeClubId && (
+          <View className="flex-1 px-4 sm:px-6 lg:px-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <LandingPageBuilder clubId={activeClubId} />
+          </View>
+        )}
+        {activeTab === "reps" && activeClubId && isSuperRep && (
+          <View className="flex-1 px-4 sm:px-6 lg:px-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <RepManager clubId={activeClubId} />
+          </View>
+        )}
+        {activeTab === "details" && activeClubId && (
+          <View className="flex-1 px-4 sm:px-6 lg:px-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <ClubDetailsEditor clubId={activeClubId} />
+          </View>
+        )}
       </View>
     </View>
   );

@@ -35,7 +35,7 @@ export default function Sidebar({ activeTab, setActiveTab, roles, activeClubId, 
 
       <View className="px-3 py-2">
         {roles.length > 1 ? (
-          <OptionPicker value={activeClubId || ""} onChange={(v) => setActiveClubId(v)} options={roles.map(r => ({ value: r.club_id, label: r.club_id }))} />
+          <OptionPicker value={activeClubId || ""} onChange={(v) => { setActiveClubId(v); window.location.reload(); }} options={roles.map(r => ({ value: r.club_id, label: r.club_id }))} />
         ) : (
           <View className="w-full bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 rounded-xl px-3 py-2">
             <Text className="text-sm font-semibold text-blue-800 dark:text-blue-300 text-center uppercase tracking-wider">{activeClubId}</Text>

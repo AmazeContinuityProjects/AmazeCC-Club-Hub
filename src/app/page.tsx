@@ -82,7 +82,7 @@ export default function Home() {
         </View>
         <View className="flex flex-row items-center gap-2 sm:gap-3">
           {roles.length > 1 && (
-            <OptionPicker value={activeClubId || ""} onChange={(v) => setActiveClubId(v)} options={roles.map(r => ({ value: r.club_id, label: r.club_id }))} className="max-w-[120px]" />
+            <OptionPicker value={activeClubId || ""} onChange={(v) => { setActiveClubId(v); window.location.reload(); }} options={roles.map(r => ({ value: r.club_id, label: r.club_id }))} className="max-w-[120px]" />
           )}
           <ThemeSwitcher />
           <Button onClick={handleLogout} variant="ghost" size="icon" className="text-danger">

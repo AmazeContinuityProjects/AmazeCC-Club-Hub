@@ -4,10 +4,16 @@ const API_TARGET = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 const nextConfig: NextConfig = {
   webpack: (config, { isServer }) => {
+    const { NormalModuleReplacementPlugin } = require("webpack");
+    config.plugins.push(
+      new NormalModuleReplacementPlugin(
+        /^react-native$/,
+        require.resolve("react-native-web")
+      )
+    );
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
       'react-native$': 'react-native-web',
-      'react-native': 'react-native-web',
     };
     return config;
   },

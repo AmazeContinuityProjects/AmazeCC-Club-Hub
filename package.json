@@ -9,7 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@amazecontinuityprojects/amazeui": "file:../AmazeUI",
+    "@amazecontinuityprojects/amazeui": "^1.4.0",
     "@tailwindcss/typography": "^0.5.20",
     "framer-motion": "^12.42.1",
     "lucide-react": "^1.22.0",

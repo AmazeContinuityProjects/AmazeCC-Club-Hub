@@ -30,5 +30,8 @@
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "react-native": "npm:react-native-web@0.21.2"
   }
 }

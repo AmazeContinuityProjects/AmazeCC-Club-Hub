@@ -2,22 +2,23 @@
 import { useState, useEffect } from "react";
 import {
   Card, CardHeader, CardTitle, CardContent, Input, Textarea, Label, Fab,
-  Button, View, Text, IconBadge, Alert, LoadingSpinner, SectionHeader, Badge
+  Button, View, Text, IconBadge, Alert, LoadingSpinner, SectionHeader, Badge, Image
 } from "@/lib/ui";
 import { apiFetch } from "@/lib/api";
 import {
   Save, Loader2, Link as LinkIcon, Camera, Phone, Target, FileText,
-  User, Mail, CheckCircle2, XCircle
+  User, Mail, CheckCircle2, XCircle, ImageIcon, ExternalLink
 } from "lucide-react";
 
 export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
   const [details, setDetails] = useState({
     mission: "", description: "", hiring_process: "", website: "", recruitment_link: "",
-    instagram: "", whatsapp: "", poc: "", email: "", poc_phone: ""
+    instagram: "", whatsapp: "", poc: "", email: "", poc_phone: "", logo_url: ""
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
+  const [logoPreviewError, setLogoPreviewError] = useState(false);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -31,7 +32,8 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
             hiring_process: data.details.hiring_process || "", website: data.details.website || "",
             recruitment_link: data.details.recruitment_link || "", instagram: data.details.instagram || "",
             whatsapp: data.details.whatsapp || "", poc: data.details.poc || "",
-            email: data.details.email || "", poc_phone: data.details.poc_phone || ""
+            email: data.details.email || "", poc_phone: data.details.poc_phone || "",
+            logo_url: data.details.logo_url || ""
           });
         }
       } catch { console.error("Failed to load details"); }
@@ -43,6 +45,7 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
   const handleChange = (e: any) => {
     const { name, value } = e.target;
     setDetails(prev => ({ ...prev, [name]: value }));
+    if (name === "logo_url") setLogoPreviewError(false);
   };
 
   const handleSave = async () => {
@@ -72,12 +75,91 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
     );
   }
 
+  const hasValidLogo = details.logo_url && !logoPreviewError;
+
   return (
     <View className="max-w-5xl mx-auto space-y-6 pb-24">
       <View className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Left column — content */}
         <View className="lg:col-span-2 space-y-6">
+
+          {/* Club Icon / Logo */}
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <View className="flex-row items-center gap-2">
+                  <IconBadge color="pink" size="sm"><ImageIcon className="w-4 h-4" /></IconBadge>
+                  <Text className="font-semibold">Club Icon</Text>
+                </View>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <View className="flex flex-row items-start gap-4">
+                {/* Live preview */}
+                <View className="shrink-0">
+                  {hasValidLogo ? (
+                    <View className="relative">
+                      <Image
+                        src={details.logo_url}
+                        alt="Club logo preview"
+                        className="w-20 h-20 rounded-2xl object-cover border-2 border-border shadow-md"
+                        onError={() => setLogoPreviewError(true)}
+                      />
+                      <View className="absolute -bottom-1 -right-1 bg-success rounded-full w-5 h-5 flex items-center justify-center border-2 border-background">
+                        <CheckCircle2 className="w-3 h-3 text-white" />
+                      </View>
+                    </View>
+                  ) : (
+                    <View className="w-20 h-20 rounded-2xl bg-muted border-2 border-dashed border-border flex flex-col items-center justify-center gap-1">
+                      <ImageIcon className="w-7 h-7 text-muted-foreground/40" />
+                      <Text className="text-[9px] text-muted-foreground/50 font-medium text-center">No icon</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* URL input */}
+                <View className="flex-1 space-y-2">
+                  <View className="space-y-1.5">
+                    <Label>
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-row items-center gap-2">
+                          <LinkIcon className="w-4 h-4 text-muted-foreground" />
+                          <Text>Icon URL</Text>
+                        </View>
+                        {logoPreviewError && details.logo_url && (
+                          <Badge variant="danger" size="sm">Invalid URL</Badge>
+                        )}
+                      </View>
+                    </Label>
+                    <Input
+                      type="url"
+                      name="logo_url"
+                      value={details.logo_url}
+                      onChange={handleChange}
+                      placeholder="https://example.com/club-logo.png"
+                    />
+                  </View>
+                  <Text className="text-xs text-muted-foreground leading-relaxed">
+                    This icon appears on the AmazeCC club directory and community feed. Use a square image (recommended: 256×256px or larger, PNG/WebP).
+                  </Text>
+                  {hasValidLogo && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(details.logo_url, "_blank")}
+                    >
+                      <View className="flex-row items-center gap-1.5">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <Text className="text-xs">Open in new tab</Text>
+                      </View>
+                    </Button>
+                  )}
+                </View>
+              </View>
+            </CardContent>
+          </Card>
+
           {/* Basic Information */}
           <Card>
             <CardHeader>
@@ -205,7 +287,6 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
         </View>
       )}
 
-      {/* FAB — icon+label handled internally by Fab component */}
       <Fab
         icon={saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
         label="Save Changes"

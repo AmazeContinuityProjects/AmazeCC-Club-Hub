@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
-import { Card, CardContent, Input, Label, Button, View, Text, Image } from "@amazecontinuityprojects/amazeui";
+import { View, Text, Image, Card, CardContent, Input, Label, Button, LoadingSpinner, Alert } from "@/lib/ui";
 import { apiFetch } from "@/lib/api";
-import { Loader2 } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 export default function LoginPage({ onLogin }: { onLogin: (token: string, roles: any[]) => void }) {
   const [username, setUsername] = useState(process.env.NEXT_PUBLIC_VTOP_USERNAME || "");
@@ -31,52 +31,82 @@ export default function LoginPage({ onLogin }: { onLogin: (token: string, roles:
   };
 
   return (
-    <View className="min-h-screen flex items-center justify-center bg-background p-4 relative">
-      <View className="absolute inset-0 bg-[linear-gradient(to_right,oklch(0.5_0.01_260)_1px,transparent_1px),linear-gradient(to_bottom,oklch(0.5_0.01_260)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none opacity-[0.03]" />
+    <View className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+      {/* Grid pattern background */}
+      <View className="absolute inset-0 bg-grid [mask-image:radial-gradient(ellipse_80%_80%_at_50%_-10%,#000_60%,transparent_100%)] pointer-events-none opacity-100" />
 
-      <Card className="max-w-md w-full p-8 space-y-8 relative overflow-hidden">
+      {/* Ambient glow orbs */}
+      <View className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+      <View className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+
+      <Card className="max-w-sm w-full relative overflow-hidden" variant="glass">
+        {/* Loading overlay */}
         {loading && (
-          <View className="absolute inset-0 bg-background/90 backdrop-blur-md flex flex-col items-center justify-center z-50 space-y-4">
-            <View className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 text-primary">
-              <Loader2 className="w-8 h-8 animate-spin" />
-            </View>
-            <View className="text-center space-y-1">
+          <View className="absolute inset-0 bg-background/80 backdrop-blur-md flex flex-col items-center justify-center z-50 gap-4 rounded-2xl">
+            <LoadingSpinner size="lg" />
+            <View className="text-center">
               <Text className="text-xs font-black uppercase tracking-widest text-foreground">VTOP Authentication</Text>
-              <Text className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider animate-pulse">Establishing secure gateway...</Text>
+              <Text className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider animate-pulse mt-1">Establishing secure gateway...</Text>
             </View>
           </View>
         )}
 
-        <View className="text-center">
-          <View className="flex justify-center mb-6">
-            <Image src="/logo.png" alt="AmazeCC Logo" className="h-14 w-14 rounded-xl object-contain shadow-md" />
-          </View>
-          <Text className="text-3xl font-extrabold text-foreground tracking-tight">Club Hub</Text>
-          <Text className="mt-2 text-sm font-medium text-muted-foreground">Sign in with your verified VTOP credentials</Text>
-        </View>
-
-        <form onSubmit={handleLogin} className="space-y-6">
-          {error && (
-            <View className="p-4 rounded-xl bg-danger-surface text-danger text-sm font-medium border border-danger/30">
-              {error}
+        <CardContent className="p-8 space-y-8">
+          {/* Logo + Title */}
+          <View className="text-center space-y-4">
+            <View className="flex justify-center">
+              <View className="relative">
+                <View className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl" />
+                <Image src="/logo.png" alt="AmazeCC Logo" className="relative h-16 w-16 rounded-2xl object-contain shadow-lg" />
+              </View>
             </View>
+            <View>
+              <Text className="text-2xl font-extrabold text-foreground tracking-tight">Club Hub</Text>
+              <Text className="mt-1 text-sm text-muted-foreground">Sign in with your VTOP credentials</Text>
+            </View>
+          </View>
+
+          {/* Error alert */}
+          {error && (
+            <Alert variant="error">
+              <Text className="text-sm font-medium">{error}</Text>
+            </Alert>
           )}
 
-          <View className="space-y-4">
-            <View>
-              <Label className="font-mono mb-1.5">VTOP_USERNAME</Label>
-              <Input required value={username} onChange={(e: any) => setUsername(e.target.value.toUpperCase())} className="uppercase placeholder:text-muted-foreground" placeholder="21BCE0000" />
+          {/* Form */}
+          <form onSubmit={handleLogin} className="space-y-5">
+            <View className="space-y-4">
+              <View className="space-y-1.5">
+                <Label className="font-mono text-xs uppercase tracking-wider text-muted-foreground">VTOP Username</Label>
+                <Input
+                  required
+                  value={username}
+                  onChange={(e: any) => setUsername(e.target.value.toUpperCase())}
+                  className="uppercase"
+                  placeholder="21BCE0000"
+                />
+              </View>
+              <View className="space-y-1.5">
+                <Label className="font-mono text-xs uppercase tracking-wider text-muted-foreground">VTOP Password</Label>
+                <Input
+                  required
+                  type="password"
+                  value={password}
+                  onChange={(e: any) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </View>
             </View>
-            <View>
-              <Label className="font-mono mb-1.5">VTOP_PASSWORD</Label>
-              <Input required type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} placeholder="••••••••" />
-            </View>
-          </View>
 
-          <Button type="submit" disabled={loading} className="w-full py-3.5">
-            Authenticate via VTOP
-          </Button>
-        </form>
+            <Button type="submit" disabled={loading} className="w-full">
+              {/* Wrap icon+text in flex-row to fix RN-Web stacking */}
+              <View className="flex-row items-center gap-2">
+                <ShieldCheck className="w-4 h-4" />
+                <Text className="font-semibold">Authenticate via VTOP</Text>
+              </View>
+            </Button>
+          </form>
+        </CardContent>
       </Card>
     </View>
   );

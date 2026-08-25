@@ -2,14 +2,16 @@
   "name": "temp-club-hub",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.13.1",
   "scripts": {
     "dev": "next dev -p 3003 --webpack",
     "build": "next build --webpack",
     "start": "next start -p 3003",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@amazecontinuityprojects/amazeui": "^1.4.2",
+    "@amazecontinuityprojects/amazeui": "^1.6.1",
     "@tailwindcss/typography": "^0.5.20",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.23.0",

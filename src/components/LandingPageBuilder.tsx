@@ -1,8 +1,16 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, Input, Textarea, Button, View, Text, IconBadge, EmptyState, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, Fab, Timeline, TimelineItem, TimelineCard, TimelineDate, TimelineTitle, TimelineDescription, TimelineActions } from "@amazecontinuityprojects/amazeui";
+import {
+  Card, CardContent, Input, Textarea, Button, View, Text, IconBadge, EmptyState,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Fab, Timeline, TimelineItem, TimelineCard, TimelineDate, TimelineTitle,
+  TimelineDescription, TimelineActions, LoadingSpinner, SectionHeader, Badge, Alert, Link
+} from "@/lib/ui";
 import { apiFetch } from "@/lib/api";
-import { Plus, Trash2, Loader2, Globe, Layout, Save, Target, CalendarDays, CheckCircle2, XCircle, Sparkles } from "lucide-react";
+import {
+  Plus, Trash2, Loader2, Globe, Layout, Save, Target,
+  CalendarDays, CheckCircle2, XCircle, Sparkles
+} from "lucide-react";
 
 interface LandingPageItem {
   name: string;
@@ -32,7 +40,7 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
         setProjects(data.landingPage.showcase_projects || []);
         setEvents(data.landingPage.popular_events || []);
       }
-    } catch (err) { console.error("Failed to load landing page data"); }
+    } catch { console.error("Failed to load landing page data"); }
   }, [clubId]);
 
   useEffect(() => {
@@ -63,10 +71,8 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
     const item: LandingPageItem = { name: form.name, description: form.description };
     if (form.link) item.link = form.link;
     if (form.date) item.date = form.date;
-
     if (showForm === "project") setProjects(prev => [item, ...prev]);
     else setEvents(prev => [item, ...prev]);
-
     setForm({ name: "", description: "", link: "", date: "" });
     setShowForm(null);
   };
@@ -84,37 +90,60 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
   };
 
   if (loading) {
-    return <View className="flex-1 flex items-center justify-center min-h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-info" /></View>;
+    return (
+      <View className="flex-1 flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <LoadingSpinner size="lg" />
+        <Text className="text-sm text-muted-foreground">Loading landing page…</Text>
+      </View>
+    );
   }
 
   return (
-    <View className="flex flex-col w-full h-full space-y-0">
-        <View className="flex flex-row items-center justify-between mb-6 shrink-0">
-          <View className="flex flex-row items-center gap-3">
-            <Text className="text-2xl font-bold tracking-tight text-foreground">Landing Page</Text>
-            <View className="bg-muted/80 rounded-full px-3 py-1 flex flex-row items-center gap-2">
-              <Sparkles className="w-3 h-3 text-muted-foreground" />
-              <Text className="text-xs font-semibold text-muted-foreground">{projects.length + events.length} items</Text>
-            </View>
-          </View>
-          <View className="flex flex-row items-center gap-2">
-            <Button onClick={() => setShowForm(showForm === "event" ? null : "event")}
-              variant={showForm === "event" ? "default" : "secondary"} size="sm" className="gap-1.5">
-              <CalendarDays className="w-4 h-4" /> Event
-            </Button>
-            <Button onClick={() => setShowForm(showForm === "project" ? null : "project")}
-              variant={showForm === "project" ? "default" : "secondary"} size="sm" className="gap-1.5">
-              <Plus className="w-4 h-4" /> Project
-            </Button>
-          </View>
-        </View>
+    <View className="flex flex-col w-full h-full">
 
+      {/* ── Header ──────────────────────────────────────────────── */}
+      <View className="flex flex-row items-center justify-between mb-6 shrink-0">
+        <SectionHeader
+          icon={<Sparkles className="w-4 h-4" />}
+          title="Landing Page"
+          subtitle={`${projects.length + events.length} item${projects.length + events.length !== 1 ? "s" : ""}`}
+        />
+        <View className="flex flex-row items-center gap-2">
+          <Button
+            onClick={() => setShowForm(showForm === "event" ? null : "event")}
+            variant={showForm === "event" ? "default" : "secondary"}
+            size="sm"
+          >
+            <View className="flex-row items-center gap-1.5">
+              <CalendarDays className="w-4 h-4" />
+              <Text className="font-semibold">Event</Text>
+            </View>
+          </Button>
+          <Button
+            onClick={() => setShowForm(showForm === "project" ? null : "project")}
+            variant={showForm === "project" ? "default" : "secondary"}
+            size="sm"
+          >
+            <View className="flex-row items-center gap-1.5">
+              <Plus className="w-4 h-4" />
+              <Text className="font-semibold">Project</Text>
+            </View>
+          </Button>
+        </View>
+      </View>
+
+      {/* ── Add item form ─────────────────────────────────────────── */}
       {showForm && (
-        <Card className="mb-6 shrink-0 border-info/30 bg-info-surface/5 animate-enter">
+        <Card className="mb-6 shrink-0 border-info/20 animate-in fade-in slide-in-from-top-2 duration-200" variant="glass">
           <CardContent className="p-4 space-y-4">
-            <Text className="text-sm font-semibold text-foreground flex flex-row items-center gap-2">
-              {showForm === "project" ? <Target className="w-4 h-4 text-purple-500" /> : <CalendarDays className="w-4 h-4 text-amber-500" />}
-              New {showForm === "project" ? "Project" : "Event"}
+            <Text className="text-sm font-semibold text-foreground">
+              <View className="flex-row items-center gap-2">
+                {showForm === "project"
+                  ? <Target className="w-4 h-4 text-purple-500" />
+                  : <CalendarDays className="w-4 h-4 text-amber-500" />
+                }
+                <Text className="font-semibold">New {showForm === "project" ? "Project" : "Event"}</Text>
+              </View>
             </Text>
             <View className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input name="name" value={form.name}
@@ -133,8 +162,11 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
               onChange={(e: any) => setForm(p => ({ ...p, link: e.target.value }))}
               placeholder="Link URL (optional)" />
             <View className="flex flex-row gap-3 pt-2">
-              <Button onClick={addItem} variant="default" size="sm">
-                <Plus className="w-4 h-4" /> {showForm === "project" ? "Add Project" : "Add Event"}
+              <Button onClick={addItem} size="sm">
+                <View className="flex-row items-center gap-1.5">
+                  <Plus className="w-4 h-4" />
+                  <Text className="font-semibold">{showForm === "project" ? "Add Project" : "Add Event"}</Text>
+                </View>
               </Button>
               <Button onClick={() => setShowForm(null)} variant="ghost" size="sm">Cancel</Button>
             </View>
@@ -142,21 +174,29 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
         </Card>
       )}
 
-      <View className="flex-1 space-y-10">
+      <View className="flex-1 space-y-10 pb-24">
+
+        {/* ── Projects ─────────────────────────────────────────────── */}
         <View>
           <View className="flex flex-row items-center gap-2 mb-4">
             <IconBadge color="purple" size="sm"><Target className="w-4 h-4" /></IconBadge>
-            <Text className="text-lg font-bold text-foreground">Projects</Text>
-            <Text className="text-xs text-muted-foreground/60 bg-muted/50 px-2 py-0.5 rounded-full">{projects.length}</Text>
+            <Text className="text-base font-bold text-foreground">Projects</Text>
+            <Badge variant="default" size="sm">{projects.length}</Badge>
           </View>
           {projects.length === 0 ? (
-            <EmptyState icon={<Layout className="w-6 h-6" />}
+            <EmptyState
+              icon={<Layout className="w-6 h-6" />}
               title="No projects yet"
-              description="Showcase your club's work">
-              <Button variant="secondary" size="sm" onClick={() => setShowForm("project")} className="mt-2">
-                <Plus className="w-4 h-4" /> Add Project
-              </Button>
-            </EmptyState>
+              description="Showcase your club's work"
+              action={
+                <Button variant="secondary" size="sm" onClick={() => setShowForm("project")} className="mt-2">
+                  <View className="flex-row items-center gap-1.5">
+                    <Plus className="w-4 h-4" />
+                    <Text className="font-semibold">Add Project</Text>
+                  </View>
+                </Button>
+              }
+            />
           ) : (
             <Timeline className="w-full">
               {projects.map((p, i) => (
@@ -166,7 +206,10 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
                       <View className="flex-1 min-w-0">
                         <TimelineTitle>{p.name}</TimelineTitle>
                         {p.link && (
-                          <Text className="text-xs text-info mt-0.5 truncate">{p.link}</Text>
+                          <Link href={p.link} target="_blank" rel="noopener noreferrer"
+                            className="text-xs text-info mt-0.5 truncate block hover:underline">
+                            {p.link}
+                          </Link>
                         )}
                       </View>
                       <Button variant="ghost" size="icon"
@@ -175,9 +218,7 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </View>
-                    {p.description && (
-                      <TimelineDescription>{p.description}</TimelineDescription>
-                    )}
+                    {p.description && <TimelineDescription>{p.description}</TimelineDescription>}
                   </TimelineCard>
                 </TimelineItem>
               ))}
@@ -185,20 +226,27 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
           )}
         </View>
 
+        {/* ── Events ───────────────────────────────────────────────── */}
         <View>
           <View className="flex flex-row items-center gap-2 mb-4">
             <IconBadge color="amber" size="sm"><CalendarDays className="w-4 h-4" /></IconBadge>
-            <Text className="text-lg font-bold text-foreground">Events</Text>
-            <Text className="text-xs text-muted-foreground/60 bg-muted/50 px-2 py-0.5 rounded-full">{events.length}</Text>
+            <Text className="text-base font-bold text-foreground">Events</Text>
+            <Badge variant="default" size="sm">{events.length}</Badge>
           </View>
           {events.length === 0 ? (
-            <EmptyState icon={<Layout className="w-6 h-6" />}
+            <EmptyState
+              icon={<Layout className="w-6 h-6" />}
               title="No events yet"
-              description="Promote upcoming events">
-              <Button variant="secondary" size="sm" onClick={() => setShowForm("event")} className="mt-2">
-                <Plus className="w-4 h-4" /> Add Event
-              </Button>
-            </EmptyState>
+              description="Promote upcoming events"
+              action={
+                <Button variant="secondary" size="sm" onClick={() => setShowForm("event")} className="mt-2">
+                  <View className="flex-row items-center gap-1.5">
+                    <Plus className="w-4 h-4" />
+                    <Text className="font-semibold">Add Event</Text>
+                  </View>
+                </Button>
+              }
+            />
           ) : (
             <Timeline className="w-full">
               {events.map((e, i) => (
@@ -206,12 +254,8 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
                   <TimelineCard>
                     <View className="flex flex-row items-start justify-between gap-2">
                       <View className="flex-1 min-w-0">
-                        <View className="flex flex-row items-center gap-2">
-                          <TimelineTitle>{e.name}</TimelineTitle>
-                        </View>
-                        {e.date && (
-                          <TimelineDate className="mt-0.5">{formatDate(e.date)}</TimelineDate>
-                        )}
+                        <TimelineTitle>{e.name}</TimelineTitle>
+                        {e.date && <TimelineDate className="mt-0.5">{formatDate(e.date)}</TimelineDate>}
                       </View>
                       <Button variant="ghost" size="icon"
                         onClick={() => setDeleting({ index: i, type: "event" })}
@@ -219,14 +263,13 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </View>
-                    {e.description && (
-                      <TimelineDescription>{e.description}</TimelineDescription>
-                    )}
+                    {e.description && <TimelineDescription>{e.description}</TimelineDescription>}
                     <TimelineActions>
                       {e.link && (
-                        <Text className="inline-flex items-center gap-1 text-xs text-info">
+                        <Link href={e.link} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-info hover:underline">
                           <Globe className="w-3 h-3" /> {e.link}
-                        </Text>
+                        </Link>
                       )}
                     </TimelineActions>
                   </TimelineCard>
@@ -237,19 +280,18 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
         </View>
       </View>
 
+      {/* ── Toast ────────────────────────────────────────────────── */}
       {message.text && (
         <View className="fixed bottom-24 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
-          <View className={`flex flex-row items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl border backdrop-blur-xl ${
-            message.type === "success"
-              ? "bg-success-surface/90 border-success/30 text-success-foreground"
-              : "bg-danger-surface/90 border-danger/30 text-danger"
-          }`}>
-            {message.type === "success"
-              ? <CheckCircle2 className="w-4 h-4 shrink-0" />
-              : <XCircle className="w-4 h-4 shrink-0" />
-            }
-            <Text className="text-sm font-medium">{message.text}</Text>
-          </View>
+          <Alert variant={message.type === "success" ? "success" : "error"}>
+            <View className="flex-row items-center gap-2">
+              {message.type === "success"
+                ? <CheckCircle2 className="w-4 h-4 shrink-0" />
+                : <XCircle className="w-4 h-4 shrink-0" />
+              }
+              <Text className="text-sm font-medium">{message.text}</Text>
+            </View>
+          </Alert>
         </View>
       )}
 
@@ -271,7 +313,10 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
             <Button variant="danger" onClick={removeItem}>
-              <Trash2 className="w-4 h-4" /> Remove
+              <View className="flex-row items-center gap-1.5">
+                <Trash2 className="w-4 h-4" />
+                <Text className="font-semibold">Remove</Text>
+              </View>
             </Button>
           </DialogFooter>
         </DialogContent>

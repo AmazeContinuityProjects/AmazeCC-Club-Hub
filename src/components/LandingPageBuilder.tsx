@@ -32,20 +32,36 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
   const [showForm, setShowForm] = useState<"project" | "event" | null>(null);
   const [form, setForm] = useState({ name: "", description: "", link: "", date: "" });
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await apiFetch(`/api/club-admin/landing-page?club_id=${encodeURIComponent(clubId)}`);
+      const res = await apiFetch(`/api/club-admin/landing-page?club_id=${encodeURIComponent(clubId)}`, {
+        signal,
+        headers: { "X-Club-Id": clubId }
+      });
+      if (signal?.aborted) return;
       const data = await res.json();
       if (data.success && data.landingPage) {
         setProjects(data.landingPage.showcase_projects || []);
         setEvents(data.landingPage.popular_events || []);
+      } else {
+        setProjects([]);
+        setEvents([]);
       }
-    } catch { console.error("Failed to load landing page data"); }
+    } catch (err: any) {
+      if (err?.name === "AbortError") return;
+      console.error("Failed to load landing page data");
+      setProjects([]);
+      setEvents([]);
+    }
   }, [clubId]);
 
   useEffect(() => {
-    const load = async () => { setLoading(true); await fetchData(); setLoading(false); };
-    load();
+    const controller = new AbortController();
+    setLoading(true);
+    fetchData(controller.signal).finally(() => {
+      if (!controller.signal.aborted) setLoading(false);
+    });
+    return () => controller.abort();
   }, [fetchData]);
 
   const saveAll = async () => {
@@ -53,7 +69,11 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
     setMessage({ type: "", text: "" });
     try {
       const res = await apiFetch("/api/club-admin/landing-page", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Club-Id": clubId
+        },
         body: JSON.stringify({ club_id: clubId, showcase_projects: projects, popular_events: events })
       });
       const data = await res.json();

@@ -28,15 +28,29 @@ export default function RepManager({ clubId }: { clubId: string }) {
   const [message, setMessage] = useState({ type: "", text: "" });
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchReps = async () => {
+      setLoading(true);
       try {
-        const res = await apiFetch(`/api/club-admin/reps?club_id=${encodeURIComponent(clubId)}`);
+        const res = await apiFetch(`/api/club-admin/reps?club_id=${encodeURIComponent(clubId)}`, {
+          signal: controller.signal,
+          headers: { "X-Club-Id": clubId }
+        });
+        if (controller.signal.aborted) return;
         const data = await res.json();
         if (data.success) setReps(data.reps || []);
-      } catch { console.error("Failed to load reps"); }
-      finally { setLoading(false); }
+        else setReps([]);
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        console.error("Failed to load reps");
+        setReps([]);
+      }
+      finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
     };
     fetchReps();
+    return () => controller.abort();
   }, [clubId]);
 
   const handleAdd = async () => {
@@ -45,7 +59,11 @@ export default function RepManager({ clubId }: { clubId: string }) {
     setMessage({ type: "", text: "" });
     try {
       const res = await apiFetch("/api/club-admin/reps", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Club-Id": clubId
+        },
         body: JSON.stringify({ club_id: clubId, vtop_id: newRep.trim(), role: newRole })
       });
       const data = await res.json();
@@ -64,7 +82,10 @@ export default function RepManager({ clubId }: { clubId: string }) {
   const handleDelete = async (vtop_id: string) => {
     setMessage({ type: "", text: "" });
     try {
-      const res = await apiFetch(`/api/club-admin/reps?vtop_id=${encodeURIComponent(vtop_id)}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/club-admin/reps?vtop_id=${encodeURIComponent(vtop_id)}&club_id=${encodeURIComponent(clubId)}`, {
+        method: "DELETE",
+        headers: { "X-Club-Id": clubId }
+      });
       const data = await res.json();
       if (data.success) {
         setReps(prev => prev.filter(r => r.vtop_id !== vtop_id));

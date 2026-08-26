@@ -21,9 +21,20 @@ export default function LoginPage({ onLogin }: { onLogin: (token: string, roles:
       const data = await res.json();
       if (data.success) {
         if (data.clubToken) {
+          // Deduplicate club roles by club_id, prioritizing super-club-rep
+          const roleMap = new Map<string, any>();
+          for (const r of (data.clubRoles || [])) {
+            if (!r?.club_id) continue;
+            const existing = roleMap.get(r.club_id);
+            if (!existing || r.role === 'super-club-rep') {
+              roleMap.set(r.club_id, r);
+            }
+          }
+          const uniqueRoles = Array.from(roleMap.values());
+
           localStorage.setItem("club_token", data.clubToken);
-          localStorage.setItem("club_roles", JSON.stringify(data.clubRoles));
-          onLogin(data.clubToken, data.clubRoles);
+          localStorage.setItem("club_roles", JSON.stringify(uniqueRoles));
+          onLogin(data.clubToken, uniqueRoles);
         } else setError("You do not have club representative privileges.");
       } else setError(data.message || data.error || "Login failed");
     } catch (err: any) { setError(err.message || "An unexpected error occurred"); }

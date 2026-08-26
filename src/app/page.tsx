@@ -27,6 +27,18 @@ const TAB_DESCRIPTIONS: Record<string, string> = {
   reps: "Add or remove club representatives.",
 };
 
+const deduplicateRoles = (rawRoles: any[]) => {
+  const map = new Map<string, any>();
+  for (const r of (rawRoles || [])) {
+    if (!r?.club_id) continue;
+    const existing = map.get(r.club_id);
+    if (!existing || r.role === "super-club-rep") {
+      map.set(r.club_id, r);
+    }
+  }
+  return Array.from(map.values());
+};
+
 export default function Home() {
   const [token, setToken] = useState<string | null>(null);
   const [roles, setRoles] = useState<any[]>([]);
@@ -38,7 +50,7 @@ export default function Home() {
     if (storedToken) {
       setToken(storedToken);
       try {
-        const storedRoles = JSON.parse(localStorage.getItem("club_roles") || "[]");
+        const storedRoles = deduplicateRoles(JSON.parse(localStorage.getItem("club_roles") || "[]"));
         setRoles(storedRoles);
         if (storedRoles.length > 0) {
           const storedActive = localStorage.getItem("active_club_id");
@@ -46,25 +58,32 @@ export default function Home() {
             setActiveClubId(storedActive);
           } else {
             setActiveClubId(storedRoles[0].club_id);
+            localStorage.setItem("active_club_id", storedRoles[0].club_id);
           }
         }
       } catch (e) { }
     }
   }, []);
 
-  useEffect(() => {
-    if (activeClubId) localStorage.setItem("active_club_id", activeClubId);
-  }, [activeClubId]);
+  const switchClub = (newClubId: string) => {
+    localStorage.setItem("active_club_id", newClubId);
+    setActiveClubId(newClubId);
+  };
 
   const handleLogin = (newToken: string, newRoles: any[]) => {
+    const uniqueRoles = deduplicateRoles(newRoles);
     setToken(newToken);
-    setRoles(newRoles);
-    if (newRoles.length > 0) setActiveClubId(newRoles[0].club_id);
+    setRoles(uniqueRoles);
+    if (uniqueRoles.length > 0) {
+      setActiveClubId(uniqueRoles[0].club_id);
+      localStorage.setItem("active_club_id", uniqueRoles[0].club_id);
+    }
   };
 
   const handleLogout = () => {
     localStorage.removeItem("club_token");
     localStorage.removeItem("club_roles");
+    localStorage.removeItem("active_club_id");
     setToken(null);
     setRoles([]);
     setActiveClubId(null);
@@ -106,7 +125,7 @@ export default function Home() {
           {roles.length > 1 && (
             <OptionPicker
               value={activeClubId || ""}
-              onChange={(v) => { setActiveClubId(v); window.location.reload(); }}
+              onChange={(v) => switchClub(v)}
               options={roles.map(r => ({ value: r.club_id, label: r.club_id }))}
               className="max-w-[120px]"
             />
@@ -131,7 +150,7 @@ export default function Home() {
           setActiveTab={setActiveTab}
           roles={roles}
           activeClubId={activeClubId}
-          setActiveClubId={setActiveClubId}
+          switchClub={switchClub}
           handleLogout={handleLogout}
           isSuperRep={isSuperRep}
         />
@@ -157,25 +176,25 @@ export default function Home() {
           </View>
         </View>
 
-        {/* Tab content */}
+        {/* Tab content - keyed by clubId so switching clubs resets all local component state */}
         {activeTab === "feed" && activeClubId && (
-          <View className="flex-1 px-4 sm:px-6 lg:px-8 py-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
-            <FeedManager clubId={activeClubId} />
+          <View key={`feed-${activeClubId}`} className="flex-1 px-4 sm:px-6 lg:px-8 py-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
+            <FeedManager key={activeClubId} clubId={activeClubId} />
           </View>
         )}
         {activeTab === "landing" && activeClubId && (
-          <View className="flex-1 px-4 sm:px-6 lg:px-8 py-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
-            <LandingPageBuilder clubId={activeClubId} />
+          <View key={`landing-${activeClubId}`} className="flex-1 px-4 sm:px-6 lg:px-8 py-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
+            <LandingPageBuilder key={activeClubId} clubId={activeClubId} />
           </View>
         )}
         {activeTab === "reps" && activeClubId && isSuperRep && (
-          <View className="flex-1 px-4 sm:px-6 lg:px-8 py-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
-            <RepManager clubId={activeClubId} />
+          <View key={`reps-${activeClubId}`} className="flex-1 px-4 sm:px-6 lg:px-8 py-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
+            <RepManager key={activeClubId} clubId={activeClubId} />
           </View>
         )}
         {activeTab === "details" && activeClubId && (
-          <View className="flex-1 px-4 sm:px-6 lg:px-8 py-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
-            <ClubDetailsEditor clubId={activeClubId} />
+          <View key={`details-${activeClubId}`} className="flex-1 px-4 sm:px-6 lg:px-8 py-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
+            <ClubDetailsEditor key={activeClubId} clubId={activeClubId} />
           </View>
         )}
       </View>

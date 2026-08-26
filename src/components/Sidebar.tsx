@@ -6,12 +6,12 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   roles: any[];
   activeClubId: string | null;
-  setActiveClubId: (id: string) => void;
+  switchClub: (id: string) => void;
   handleLogout: () => void;
   isSuperRep?: boolean;
 }
 
-export default function Sidebar({ activeTab, setActiveTab, roles, activeClubId, setActiveClubId, handleLogout, isSuperRep }: SidebarProps) {
+export default function Sidebar({ activeTab, setActiveTab, roles, activeClubId, switchClub, handleLogout, isSuperRep }: SidebarProps) {
   const tabs = [
     { id: "feed", label: "Feed Manager", icon: MessageSquare },
     { id: "details", label: "Club Details", icon: Info },
@@ -40,7 +40,7 @@ export default function Sidebar({ activeTab, setActiveTab, roles, activeClubId, 
         {roles.length > 1 ? (
           <OptionPicker
             value={activeClubId || ""}
-            onChange={(v) => { setActiveClubId(v); window.location.reload(); }}
+            onChange={(v) => switchClub(v)}
             options={roles.map(r => ({ value: r.club_id, label: r.club_id }))}
           />
         ) : (

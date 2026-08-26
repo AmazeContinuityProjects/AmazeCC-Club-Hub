@@ -43,14 +43,31 @@ export default function FeedManager({ clubId }: { clubId: string }) {
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  const fetchPosts = useCallback(async () => {
+  const fetchPosts = useCallback(async (signal?: AbortSignal) => {
     setRefreshing(true);
     try {
-      const res = await apiFetch(`/api/club-admin/feed?club_id=${encodeURIComponent(clubId)}`);
+      const res = await apiFetch(`/api/club-admin/feed?club_id=${encodeURIComponent(clubId)}`, {
+        signal,
+        headers: { "X-Club-Id": clubId }
+      });
+      if (signal?.aborted) return;
       const data = await res.json();
-      if (data.success) setPosts(data.feed || []);
-    } catch { console.error("Failed to fetch posts"); }
-    finally { setRefreshing(false); }
+      if (data.success) {
+        // Deduplicate by id — guards against API duplicates and against
+        // React StrictMode's double-effect firing two concurrent fetches.
+        const seen = new Set<number>();
+        const unique = (data.feed || []).filter((p: FeedPost) => {
+          if (seen.has(p.id)) return false;
+          seen.add(p.id);
+          return true;
+        });
+        setPosts(unique);
+      }
+    } catch (err: any) {
+      if (err?.name === "AbortError") return; // StrictMode cleanup — ignore
+      console.error("Failed to fetch posts");
+    }
+    finally { if (!signal?.aborted) setRefreshing(false); }
   }, [clubId]);
 
   const fetchEvents = useCallback(async () => {
@@ -64,8 +81,12 @@ export default function FeedManager({ clubId }: { clubId: string }) {
   }, []);
 
   useEffect(() => {
-    const load = async () => { setLoading(true); await fetchPosts(); setLoading(false); };
-    load();
+    const controller = new AbortController();
+    setLoading(true);
+    fetchPosts(controller.signal).finally(() => {
+      if (!controller.signal.aborted) setLoading(false);
+    });
+    return () => controller.abort();
   }, [fetchPosts]);
 
   useEffect(() => {
@@ -87,11 +108,15 @@ export default function FeedManager({ clubId }: { clubId: string }) {
     if (!content.trim()) return;
     try {
       const links = socialLinks.filter(l => l.url).map(l => ({ url: l.url, label: l.label }));
-      const body: any = { content, links };
+      const body: any = { content, links, club_id: clubId };
       if (imagePreview) body.image_urls = [imagePreview];
       if (selectedEventId) body.event_id = selectedEventId;
       const res = await apiFetch("/api/club-admin/feed", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Club-Id": clubId
+        },
         body: JSON.stringify(body)
       });
       const data = await res.json();
@@ -105,7 +130,10 @@ export default function FeedManager({ clubId }: { clubId: string }) {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await apiFetch(`/api/club-admin/feed?post_id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/club-admin/feed?post_id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: { "X-Club-Id": clubId }
+      });
       const data = await res.json();
       if (data.success) await fetchPosts();
       else alert(data.error || "Failed to delete post");

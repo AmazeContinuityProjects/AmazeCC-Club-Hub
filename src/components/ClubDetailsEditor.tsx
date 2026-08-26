@@ -10,36 +10,69 @@ import {
   User, Mail, CheckCircle2, XCircle, ImageIcon, ExternalLink
 } from "lucide-react";
 
+const INITIAL_DETAILS = {
+  mission: "",
+  description: "",
+  hiring_process: "",
+  website: "",
+  recruitment_link: "",
+  instagram: "",
+  whatsapp: "",
+  poc: "",
+  email: "",
+  poc_phone: "",
+  logo_url: ""
+};
+
 export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
-  const [details, setDetails] = useState({
-    mission: "", description: "", hiring_process: "", website: "", recruitment_link: "",
-    instagram: "", whatsapp: "", poc: "", email: "", poc_phone: "", logo_url: ""
-  });
+  const [details, setDetails] = useState(INITIAL_DETAILS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [logoPreviewError, setLogoPreviewError] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchDetails = async () => {
       setLoading(true);
+      setMessage({ type: "", text: "" });
       try {
-        const res = await apiFetch(`/api/club-admin/details?club_id=${encodeURIComponent(clubId)}`);
+        const res = await apiFetch(`/api/club-admin/details?club_id=${encodeURIComponent(clubId)}`, {
+          signal: controller.signal,
+          headers: { "X-Club-Id": clubId }
+        });
+        if (controller.signal.aborted) return;
         const data = await res.json();
         if (data.success && data.details) {
           setDetails({
-            mission: data.details.mission || "", description: data.details.description || "",
-            hiring_process: data.details.hiring_process || "", website: data.details.website || "",
-            recruitment_link: data.details.recruitment_link || "", instagram: data.details.instagram || "",
-            whatsapp: data.details.whatsapp || "", poc: data.details.poc || "",
-            email: data.details.email || "", poc_phone: data.details.poc_phone || "",
+            mission: data.details.mission || "",
+            description: data.details.description || "",
+            hiring_process: data.details.hiring_process || "",
+            website: data.details.website || "",
+            recruitment_link: data.details.recruitment_link || "",
+            instagram: data.details.instagram || "",
+            whatsapp: data.details.whatsapp || "",
+            poc: data.details.poc || "",
+            email: data.details.email || "",
+            poc_phone: data.details.poc_phone || "",
             logo_url: data.details.logo_url || ""
           });
+        } else {
+          // If no details exist yet in DB for this club, reset to blank fields
+          setDetails(INITIAL_DETAILS);
         }
-      } catch { console.error("Failed to load details"); }
-      finally { setLoading(false); }
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        console.error("Failed to load details");
+        setDetails(INITIAL_DETAILS);
+      }
+      finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
     };
+
     fetchDetails();
+    return () => controller.abort();
   }, [clubId]);
 
   const handleChange = (e: any) => {
@@ -53,7 +86,11 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
     setMessage({ type: "", text: "" });
     try {
       const res = await apiFetch('/api/club-admin/details', {
-        method: 'POST', headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: {
+          "Content-Type": "application/json",
+          "X-Club-Id": clubId
+        },
         body: JSON.stringify({ ...details, club_id: clubId })
       });
       const data = await res.json();
@@ -287,6 +324,7 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
         </View>
       )}
 
+      {/* FAB — icon+label handled internally by Fab component */}
       <Fab
         icon={saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
         label="Save Changes"

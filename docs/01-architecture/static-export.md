@@ -33,6 +33,14 @@ const nextConfig: NextConfig = {
 
 `nextjs.yml` then uploads `out/` to GitHub Pages. **`out/index.html` existing is the only "is it alive?" test the pipeline uses** (`test -f out/index.html`).
 
+```mermaid
+flowchart LR
+  SRC[src/\nsource code] -->|"pnpm build"| NX[Next.js\nstatic export]
+  NX --> OUT[out/\nindex.html + chunks]
+  OUT -->|upload-pages-artifact| GH[GitHub Pages]
+  GH -->|HTTPS| VIS[visitor's browser]
+```
+
 ## What you can and cannot do
 
 **You CAN:** client-side routing-ish behavior, fetches everywhere, any UI library, anything the browser itself supports.

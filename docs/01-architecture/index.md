@@ -18,18 +18,19 @@ These pages follow that sentence from outside in:
 
 **The diagram, as a promise:**
 
-```
-        your browser
-   ┌─────────────────────┐
-   │  Club Hub (this app) │
-   │  static files only   │
-   └─────────┬───────────┘
-             │ fetch/JSON over HTTPS
-             ▼
-   https://api.amazecc.com   ← AmazeCC-API (scraping, auth, DB)
-             │
-             ▼
-        Postgres + VTOP
+```mermaid
+flowchart TB
+    subgraph UC[your browser]
+        direction TB
+        BROWSER[Browser] <--> CH[Club Hub\nstatic files]
+    end
+    subgraph EDGE[outside your browser]
+        direction TB
+        API[AmazeCC-API\nhttps://api.amazecc.com] --> DB[(Postgres)]
+        API --> VTOP[VIT VTOP\nlogin + scrape]
+    end
+    BROWSER -->|"fetch(…)\nJSON + Bearer clubToken"| API
+    API -->|"{success:true, …}"| BROWSER
 ```
 
 ## Where to next

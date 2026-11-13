@@ -7,20 +7,28 @@ description: "From typed password to working club page - the complete login hand
 
 > **In one line:** you prove who you are to VTOP once; VTOP's verdict flows back through the API as a 7-day signed badge the browser keeps in localStorage; every later call shows that badge.
 
-## The story in one diagram
+## The full handshake as a sequence diagram
 
-```
-you                Club Hub (this app)              AmazeCC API                 VTOP
- │  username+password                     │                           │
- │ ───────────────────────────────────►   │  solve captcha (offline)  │
- │                                        │ ──────── POST /login ───► │
- │                                        │ ◄───── 302 + cookies ───── │
- │                                        │  read dashboard           │
- │                                        │  find authorizedID (=you) │
- │                                        │  check club_representatives
- │ ◄───── { success, clubToken, ──────── │                           │
- │          clubRoles }                   │                           │
- │  save badge to localStorage            │                           │
+```mermaid
+sequenceDiagram
+  autonumber
+  participant B as Browser (LoginPage)
+  participant API as AmazeCC-API
+  participant VTOP as VIT VTOP
+  Note over B: user submits username + password
+  B->>API: POST /api/login { username, password }
+  API->>VTOP: "POST /vtop/login (captcha solved offline)"
+  VTOP-->>API: 302 to dashboard HTML
+  API->>API: parse authorizedID, _csrf, cookies
+  API->>API: SELECT club_representatives WHERE vtop_id = you
+  alt Has club privileges
+    API-->>B: { success:true, clubToken, clubRoles }
+    B->>B: localStorage: club_token, club_roles, active_club_id
+    B-->>B: page.tsx shell renders with tabs
+  else No clubs
+    API-->>B: { success:true } (no clubToken)
+    B-->>B: show "no club rep privileges"
+  end
 ```
 
 ## Every field, one on one

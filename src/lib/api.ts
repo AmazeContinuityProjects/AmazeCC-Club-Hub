@@ -1,4 +1,5 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://api.amazecc.com";
+// AmazeCC API on Cloudflare Workers (Hono). Serves /api/login (VTOP) and /api/club-admin/*.
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://hono.amazecc.com";
 
 export function apiUrl(path: string) {
   return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
@@ -34,7 +35,7 @@ export const fetcher = async (path: string) => {
   const res = await apiFetch(path);
   
   if (!res.ok) {
-    const error = new Error('An error occurred while fetching the data.') as any;
+    const error = new Error('An error occurred while fetching the data.') as Error & { info?: unknown; status?: number };
     error.info = await res.json().catch(() => ({}));
     error.status = res.status;
     throw error;

@@ -1,0 +1,25 @@
+# Notify the docs repo when the handbook changes.
+# Needs repo secret DOCS_DISPATCH_TOKEN (fine-grained PAT with Contents: read/write
+# on AmazeContinuityProjects/docs). Seeded for this repo.
+name: Notify docs repo
+
+on:
+  push:
+    branches: [main, modifs]
+    paths: ["docs/**"]
+
+permissions: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch docs-updated to the docs repo
+        env:
+          GH_TOKEN: ${{ secrets.DOCS_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "DOCS_DISPATCH_TOKEN not set - skipping docs-updated dispatch"
+            exit 0
+          fi
+          gh api repos/AmazeContinuityProjects/docs/dispatches -f event_type=docs-updated

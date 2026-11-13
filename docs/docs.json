@@ -1,0 +1,113 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "AmazeCC Club Hub",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Start here",
+        "icon": "rocket",
+        "expanded": true,
+        "pages": [
+          {
+            "group": "Start Here",
+            "root": "00-start-here/index",
+            "pages": [
+              "00-start-here/conventions",
+              "00-start-here/how-it-works",
+              "00-start-here/quickstart"
+            ],
+            "expanded": true
+          }
+        ]
+      },
+      {
+        "group": "Architecture",
+        "icon": "cpu",
+        "expanded": true,
+        "pages": [
+          {
+            "group": "Architecture",
+            "root": "01-architecture/index",
+            "pages": [
+              "01-architecture/amazecc-context",
+              "01-architecture/layout-and-theming",
+              "01-architecture/react-native-web",
+              "01-architecture/static-export"
+            ]
+          }
+        ]
+      },
+      {
+        "group": "Components",
+        "icon": "layout-dashboard",
+        "expanded": true,
+        "pages": [
+          {
+            "group": "Components",
+            "root": "02-components/index",
+            "pages": [
+              "02-components/club-details-editor",
+              "02-components/feed-manager",
+              "02-components/landing-page-builder",
+              "02-components/login-page",
+              "02-components/page",
+              "02-components/rep-manager",
+              "02-components/sidebar",
+              "02-components/theme-switcher"
+            ]
+          }
+        ]
+      },
+      {
+        "group": "API Integration",
+        "icon": "plug",
+        "expanded": true,
+        "pages": [
+          {
+            "group": "API Integration",
+            "root": "03-api-integration/index",
+            "pages": [
+              "03-api-integration/auth-flow",
+              "03-api-integration/club-admin-endpoints",
+              "03-api-integration/envelopes-and-errors",
+              "03-api-integration/feed-endpoints"
+            ]
+          }
+        ]
+      },
+      {
+        "group": "Operations",
+        "icon": "wrench",
+        "expanded": true,
+        "pages": [
+          {
+            "group": "Operations",
+            "root": "04-operations/index",
+            "pages": [
+              "04-operations/ci",
+              "04-operations/deployment",
+              "04-operations/env-vars",
+              "04-operations/security"
+            ]
+          }
+        ]
+      },
+      {
+        "group": "Reference",
+        "icon": "book-open",
+        "expanded": true,
+        "pages": [
+          {
+            "group": "Reference",
+            "root": "05-reference/index",
+            "pages": [
+              "05-reference/data-types",
+              "05-reference/known-issues",
+              "05-reference/localstorage-keys"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

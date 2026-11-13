@@ -1,4 +1,6 @@
-// AmazeCC API on Cloudflare Workers (Hono) — club-admin + remote VTOP.
+// AmazeCC API on Cloudflare Workers (Hono) - club-admin + remote VTOP.
+import { getAccessTokenSync, signOutOidc } from "./oauth2";
+
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://hono.amazecc.com";
 
 // Amaze ID (auth.amazecc.com) — club identity. A club-rep session is a plain
@@ -11,18 +13,15 @@ export function apiUrl(path: string) {
 
 export function getClubToken() {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("club_token");
+  // OIDC access token (authorization_code + PKCE); refresh happens in oauth2.ts
+  // (ensureFreshAccessToken, called on app mount).
+  return getAccessTokenSync();
 }
 
 export async function signOut() {
-  const token = getClubToken();
-  if (token) {
-    await fetch(`${AUTH_BASE}/api/auth/sign-out`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${token}` },
-    }).catch(() => {});
-  }
-  localStorage.removeItem("club_token");
+  // Revoke the OAuth tokens at the IdP, then drop local state. The IdP session
+  // stays alive so the next sign-in is a silent SSO hop.
+  await signOutOidc();
   localStorage.removeItem("club_roles");
   localStorage.removeItem("active_club_id");
 }

@@ -11,6 +11,7 @@ import Sidebar from "@/components/Sidebar";
 import ClubDetailsEditor from "@/components/ClubDetailsEditor";
 import RepManager from "@/components/RepManager";
 import { getClubToken, signOut, apiFetch } from "@/lib/api";
+import { ensureFreshAccessToken, trySilentSignIn, clearOidcStorage } from "@/lib/oauth2";
 import { LogOut, MessageSquare, Info, LayoutTemplate, Users } from "lucide-react";
 
 const TAB_LABELS: Record<string, string> = {
@@ -47,46 +48,57 @@ export default function Home() {
   const [hydrating, setHydrating] = useState(true);
   const [linkRequired, setLinkRequired] = useState(false);
 
-  // Hydrate from the shared store: Amaze ID session is the only source of truth.
+  // Hydrate from the shared store: Amaze ID tokens are the only source of truth.
   useEffect(() => {
-    const storedToken = getClubToken();
-    if (!storedToken) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate post-mount hydration; static export
-      setHydrating(false);
-      return;
-    }
-    apiFetch("/api/club-admin/my-clubs")
-      .then(async (res) => {
-        if (res.status === 403) {
-          const body = await res.json().catch(() => null);
-          if (body?.error === "vtop_link_required") {
-            setToken(storedToken); // keep token so the login screen's link gate renders
-            setLinkRequired(true);
-            localStorage.removeItem("club_token");
+    const hydrate = (storedToken: string) => {
+      apiFetch("/api/club-admin/my-clubs")
+        .then(async (res) => {
+          if (res.status === 403) {
+            const body = await res.json().catch(() => null);
+            if (body?.error === "vtop_link_required") {
+              setToken(storedToken); // keep token so the login screen's link gate renders
+              setLinkRequired(true);
+              clearOidcStorage();
+              return;
+            }
+            // Not a club rep (anymore) - force re-login
+            clearOidcStorage();
+            localStorage.removeItem("club_roles");
+            localStorage.removeItem("active_club_id");
             return;
           }
-          // Not a club rep (anymore) — force re-login
-          localStorage.removeItem("club_token");
-          localStorage.removeItem("club_roles");
-          localStorage.removeItem("active_club_id");
-          return;
-        }
-        if (!res.ok) return; // transient — stay on login screen
-        const data = await res.json();
-        const uniqueRoles = deduplicateRoles(data.clubs ?? []);
-        setToken(storedToken);
-        setRoles(uniqueRoles);
-        localStorage.setItem("club_roles", JSON.stringify(uniqueRoles));
-        const storedActive = localStorage.getItem("active_club_id");
-        if (storedActive && uniqueRoles.find((r: { club_id: string }) => r.club_id === storedActive)) {
-          setActiveClubId(storedActive);
-        } else if (uniqueRoles[0]) {
-          setActiveClubId(uniqueRoles[0].club_id);
-          localStorage.setItem("active_club_id", uniqueRoles[0].club_id);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setHydrating(false));
+          if (!res.ok) return; // transient - stay on login screen
+          const data = await res.json();
+          const uniqueRoles = deduplicateRoles(data.clubs ?? []);
+          setToken(storedToken);
+          setRoles(uniqueRoles);
+          localStorage.setItem("club_roles", JSON.stringify(uniqueRoles));
+          const storedActive = localStorage.getItem("active_club_id");
+          if (storedActive && uniqueRoles.find((r: { club_id: string }) => r.club_id === storedActive)) {
+            setActiveClubId(storedActive);
+          } else if (uniqueRoles[0]) {
+            setActiveClubId(uniqueRoles[0].club_id);
+            localStorage.setItem("active_club_id", uniqueRoles[0].club_id);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setHydrating(false));
+    };
+
+    (async () => {
+      let storedToken = getClubToken();
+      if (!storedToken && typeof window !== "undefined" && localStorage.getItem("amaze_oidc_refresh_token")) {
+        await ensureFreshAccessToken();
+        storedToken = getClubToken();
+      }
+      if (storedToken) {
+        hydrate(storedToken);
+        return;
+      }
+      // No credentials - one silent SSO attempt per tab if the IdP session exists.
+      if (trySilentSignIn()) return; // redirecting to the IdP
+      setHydrating(false);
+    })().catch(() => setHydrating(false));
   }, []);
 
   const switchClub = (newClubId: string) => {
@@ -94,20 +106,8 @@ export default function Home() {
     setActiveClubId(newClubId);
   };
 
-  const handleLogin = (newToken: string, newRoles: { club_id: string; role: string }[]) => {
-    const uniqueRoles = deduplicateRoles(newRoles);
-    setToken(newToken);
-    setLinkRequired(false);
-    setRoles(uniqueRoles);
-    if (uniqueRoles.length > 0) {
-      setActiveClubId(uniqueRoles[0].club_id);
-      localStorage.setItem("active_club_id", uniqueRoles[0].club_id);
-    }
-  };
-
   const handleLogout = () => {
     signOut().finally(() => {
-      localStorage.removeItem("club_roles");
       localStorage.removeItem("active_club_id");
       setToken(null);
       setRoles([]);
@@ -125,10 +125,10 @@ export default function Home() {
   }
 
   if (linkRequired) {
-    return <LoginPage onLogin={handleLogin} />;
+    return <LoginPage vtopLinkRequired />;
   }
 
-  if (!token) return <LoginPage onLogin={handleLogin} />;
+  if (!token) return <LoginPage />;
 
   const isSuperRep = roles.some((r) => r.role === "super-club-rep");
 

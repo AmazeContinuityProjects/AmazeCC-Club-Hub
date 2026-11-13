@@ -61,8 +61,8 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
           // If no details exist yet in DB for this club, reset to blank fields
           setDetails(INITIAL_DETAILS);
         }
-      } catch (err: any) {
-        if (err?.name === "AbortError") return;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") return;
         console.error("Failed to load details");
         setDetails(INITIAL_DETAILS);
       }
@@ -75,7 +75,7 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
     return () => controller.abort();
   }, [clubId]);
 
-  const handleChange = (e: any) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setDetails(prev => ({ ...prev, [name]: value }));
     if (name === "logo_url") setLogoPreviewError(false);
@@ -96,7 +96,7 @@ export default function ClubDetailsEditor({ clubId }: { clubId: string }) {
       const data = await res.json();
       if (data.success) setMessage({ type: "success", text: "Details saved successfully!" });
       else setMessage({ type: "error", text: data.error || "Failed to save details." });
-    } catch (err: any) { setMessage({ type: "error", text: err.message || "An error occurred." }); }
+    } catch (err: unknown) { setMessage({ type: "error", text: (err instanceof Error ? err.message : "An error occurred.") || "An error occurred." }); }
     finally {
       setSaving(false);
       setTimeout(() => setMessage({ type: "", text: "" }), 5000);

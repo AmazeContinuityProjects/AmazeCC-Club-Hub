@@ -1,10 +1,15 @@
 import { Button, OptionPicker, View, Text, Image, Sidebar as ReusableSidebar, SidebarHeader, SidebarContent, SidebarGroup, SidebarItem, SidebarFooter, ThemeSwitcher, Badge } from "@/lib/ui";
 import { MessageSquare, LogOut, Info, Users, LayoutTemplate } from "lucide-react";
 
+export interface ClubRole {
+  club_id: string;
+  role: string;
+}
+
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  roles: any[];
+  roles: ClubRole[];
   activeClubId: string | null;
   switchClub: (id: string) => void;
   handleLogout: () => void;

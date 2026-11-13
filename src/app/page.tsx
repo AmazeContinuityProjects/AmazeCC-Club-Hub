@@ -27,8 +27,8 @@ const TAB_DESCRIPTIONS: Record<string, string> = {
   reps: "Add or remove club representatives.",
 };
 
-const deduplicateRoles = (rawRoles: any[]) => {
-  const map = new Map<string, any>();
+const deduplicateRoles = (rawRoles: { club_id: string; role: string }[]) => {
+  const map = new Map<string, { club_id: string; role: string }>();
   for (const r of (rawRoles || [])) {
     if (!r?.club_id) continue;
     const existing = map.get(r.club_id);
@@ -41,20 +41,21 @@ const deduplicateRoles = (rawRoles: any[]) => {
 
 export default function Home() {
   const [token, setToken] = useState<string | null>(null);
-  const [roles, setRoles] = useState<any[]>([]);
+  const [roles, setRoles] = useState<{ club_id: string; role: string }[]>([]);
   const [activeClubId, setActiveClubId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("feed");
 
   useEffect(() => {
     const storedToken = getClubToken();
     if (storedToken) {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate post-mount hydration
       setToken(storedToken);
       try {
         const storedRoles = deduplicateRoles(JSON.parse(localStorage.getItem("club_roles") || "[]"));
         setRoles(storedRoles);
         if (storedRoles.length > 0) {
           const storedActive = localStorage.getItem("active_club_id");
-          if (storedActive && storedRoles.find((r: any) => r.club_id === storedActive)) {
+          if (storedActive && storedRoles.find((r: { club_id: string; role: string }) => r.club_id === storedActive)) {
             setActiveClubId(storedActive);
           } else {
             setActiveClubId(storedRoles[0].club_id);
@@ -70,7 +71,7 @@ export default function Home() {
     setActiveClubId(newClubId);
   };
 
-  const handleLogin = (newToken: string, newRoles: any[]) => {
+  const handleLogin = (newToken: string, newRoles: { club_id: string; role: string }[]) => {
     const uniqueRoles = deduplicateRoles(newRoles);
     setToken(newToken);
     setRoles(uniqueRoles);

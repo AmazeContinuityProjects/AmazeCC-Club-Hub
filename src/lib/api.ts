@@ -35,7 +35,7 @@ export const fetcher = async (path: string) => {
   const res = await apiFetch(path);
   
   if (!res.ok) {
-    const error = new Error('An error occurred while fetching the data.') as any;
+    const error = new Error('An error occurred while fetching the data.') as Error & { info?: unknown; status?: number };
     error.info = await res.json().catch(() => ({}));
     error.status = res.status;
     throw error;

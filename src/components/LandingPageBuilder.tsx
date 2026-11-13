@@ -47,8 +47,8 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
         setProjects([]);
         setEvents([]);
       }
-    } catch (err: any) {
-      if (err?.name === "AbortError") return;
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
       console.error("Failed to load landing page data");
       setProjects([]);
       setEvents([]);
@@ -57,6 +57,7 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
 
   useEffect(() => {
     const controller = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate post-mount hydration
     setLoading(true);
     fetchData(controller.signal).finally(() => {
       if (!controller.signal.aborted) setLoading(false);
@@ -79,7 +80,7 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
       const data = await res.json();
       if (data.success) setMessage({ type: "success", text: "Landing page saved!" });
       else setMessage({ type: "error", text: data.error || "Failed to save" });
-    } catch (err: any) { setMessage({ type: "error", text: err.message }); }
+    } catch (err: unknown) { setMessage({ type: "error", text: err instanceof Error ? err.message : "Save failed" }); }
     finally {
       setSaving(false);
       setTimeout(() => setMessage({ type: "", text: "" }), 4000);
@@ -167,19 +168,19 @@ export default function LandingPageBuilder({ clubId }: { clubId: string }) {
             </Text>
             <View className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input name="name" value={form.name}
-                onChange={(e: any) => setForm(p => ({ ...p, name: e.target.value }))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm(p => ({ ...p, name: e.target.value }))}
                 placeholder="Name *" required />
               {showForm === "event" && (
                 <Input type="date" name="date" value={form.date}
-                  onChange={(e: any) => setForm(p => ({ ...p, date: e.target.value }))}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm(p => ({ ...p, date: e.target.value }))}
                   placeholder="Date" />
               )}
             </View>
             <Textarea name="description" value={form.description}
-              onChange={(e: any) => setForm(p => ({ ...p, description: e.target.value }))}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setForm(p => ({ ...p, description: e.target.value }))}
               placeholder="Description *" required className="min-h-[80px]" />
             <Input name="link" value={form.link}
-              onChange={(e: any) => setForm(p => ({ ...p, link: e.target.value }))}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm(p => ({ ...p, link: e.target.value }))}
               placeholder="Link URL (optional)" />
             <View className="flex flex-row gap-3 pt-2">
               <Button onClick={addItem} size="sm">

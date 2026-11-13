@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import {
   Card, CardContent, Input, Fab, Button, View, Text, EmptyState,
   Timeline, TimelineItem, TimelineCard, TimelineDate, TimelineTitle,
-  TimelineActions, OptionPicker, Dialog, DialogContent, DialogHeader,
+  OptionPicker, Dialog, DialogContent, DialogHeader,
   DialogTitle, DialogDescription, DialogFooter, Badge, Alert,
   LoadingSpinner, SectionHeader
 } from "@/lib/ui";
@@ -40,8 +40,8 @@ export default function RepManager({ clubId }: { clubId: string }) {
         const data = await res.json();
         if (data.success) setReps(data.reps || []);
         else setReps([]);
-      } catch (err: any) {
-        if (err?.name === "AbortError") return;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") return;
         console.error("Failed to load reps");
         setReps([]);
       }
@@ -72,7 +72,7 @@ export default function RepManager({ clubId }: { clubId: string }) {
         setNewRep(""); setNewRole("representative"); setShowForm(false);
         setMessage({ type: "success", text: "Representative added" });
       } else setMessage({ type: "error", text: data.error || "Failed to add rep" });
-    } catch (err: any) { setMessage({ type: "error", text: err.message }); }
+    } catch (err: unknown) { setMessage({ type: "error", text: err instanceof Error ? err.message : "Request failed" }); }
     finally {
       setAdding(false);
       setTimeout(() => setMessage({ type: "", text: "" }), 4000);
@@ -91,7 +91,7 @@ export default function RepManager({ clubId }: { clubId: string }) {
         setReps(prev => prev.filter(r => r.vtop_id !== vtop_id));
         setMessage({ type: "success", text: "Representative removed" });
       } else setMessage({ type: "error", text: data.error || "Failed to remove rep" });
-    } catch (err: any) { setMessage({ type: "error", text: err.message }); }
+    } catch (err: unknown) { setMessage({ type: "error", text: err instanceof Error ? err.message : "Request failed" }); }
     finally {
       setDeleting(null);
       setTimeout(() => setMessage({ type: "", text: "" }), 4000);
@@ -138,10 +138,10 @@ export default function RepManager({ clubId }: { clubId: string }) {
               <Input
                 name="vtop_id"
                 value={newRep}
-                onChange={(e: any) => setNewRep(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewRep(e.target.value)}
                 placeholder="Registration Number (e.g. 21BCE0000)"
                 className="flex-1"
-                onKeyDown={(e: any) => e.key === "Enter" && handleAdd()}
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && handleAdd()}
               />
               <OptionPicker
                 value={newRole}

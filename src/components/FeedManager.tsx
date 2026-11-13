@@ -63,8 +63,8 @@ export default function FeedManager({ clubId }: { clubId: string }) {
         });
         setPosts(unique);
       }
-    } catch (err: any) {
-      if (err?.name === "AbortError") return; // StrictMode cleanup — ignore
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return; // StrictMode cleanup - ignore
       console.error("Failed to fetch posts");
     }
     finally { if (!signal?.aborted) setRefreshing(false); }
@@ -82,6 +82,7 @@ export default function FeedManager({ clubId }: { clubId: string }) {
 
   useEffect(() => {
     const controller = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate post-mount hydration
     setLoading(true);
     fetchPosts(controller.signal).finally(() => {
       if (!controller.signal.aborted) setLoading(false);
@@ -90,6 +91,7 @@ export default function FeedManager({ clubId }: { clubId: string }) {
   }, [fetchPosts]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate post-mount hydration
     if (showForm && events.length === 0) fetchEvents();
   }, [showForm, events.length, fetchEvents]);
 
@@ -108,7 +110,7 @@ export default function FeedManager({ clubId }: { clubId: string }) {
     if (!content.trim()) return;
     try {
       const links = socialLinks.filter(l => l.url).map(l => ({ url: l.url, label: l.label }));
-      const body: any = { content, links, club_id: clubId };
+      const body: { content: string; links: { url: string; label: string }[]; club_id: string; image_urls?: string[]; event_id?: string } = { content, links, club_id: clubId };
       if (imagePreview) body.image_urls = [imagePreview];
       if (selectedEventId) body.event_id = selectedEventId;
       const res = await apiFetch("/api/club-admin/feed", {
@@ -125,7 +127,7 @@ export default function FeedManager({ clubId }: { clubId: string }) {
         setSocialLinks([{ url: "", label: "" }]); setShowForm(false);
         await fetchPosts();
       } else alert(data.error || "Failed to create post");
-    } catch (err: any) { alert(err.message); }
+    } catch (err: unknown) { alert(err instanceof Error ? err.message : "Request failed"); }
   };
 
   const handleDelete = async (id: string) => {
@@ -137,7 +139,7 @@ export default function FeedManager({ clubId }: { clubId: string }) {
       const data = await res.json();
       if (data.success) await fetchPosts();
       else alert(data.error || "Failed to delete post");
-    } catch (err: any) { alert(err.message); }
+    } catch (err: unknown) { alert(err instanceof Error ? err.message : "Request failed"); }
     finally { setConfirmDelete(null); }
   };
 
@@ -188,7 +190,7 @@ export default function FeedManager({ clubId }: { clubId: string }) {
             <Textarea
               placeholder="What's happening with your club?"
               value={content}
-              onChange={(e: any) => setContent(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
               className="min-h-[90px] bg-transparent border-0 focus-visible:ring-0 p-0 text-base placeholder:text-muted-foreground/50 resize-none"
             />
 
@@ -210,7 +212,7 @@ export default function FeedManager({ clubId }: { clubId: string }) {
               <Input
                 type="url"
                 value={socialLinks[0]?.url || ""}
-                onChange={(e: any) => {
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   if (socialLinks[0]) updateLink(0, "url", e.target.value);
                   else setSocialLinks([{ url: e.target.value, label: "" }]);
                 }}
@@ -220,7 +222,7 @@ export default function FeedManager({ clubId }: { clubId: string }) {
               {socialLinks[0]?.url && (
                 <Input
                   value={socialLinks[0]?.label || ""}
-                  onChange={(e: any) => updateLink(0, "label", e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateLink(0, "label", e.target.value)}
                   placeholder="Label"
                   className="w-28 text-sm h-9"
                 />
@@ -247,10 +249,10 @@ export default function FeedManager({ clubId }: { clubId: string }) {
                 {socialLinks.slice(1).map((link, i) => (
                   <View key={i} className="flex flex-row items-center gap-2">
                     <Input type="url" value={link.url}
-                      onChange={(e: any) => updateLink(i + 1, "url", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateLink(i + 1, "url", e.target.value)}
                       placeholder="https://…" className="flex-1 text-sm h-8" />
                     <Input value={link.label}
-                      onChange={(e: any) => updateLink(i + 1, "label", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateLink(i + 1, "label", e.target.value)}
                       placeholder="Label" className="w-28 text-sm h-8" />
                     <Button variant="ghost" size="icon" onClick={() => removeLink(i + 1)}
                       className="text-danger h-8 w-8 shrink-0">

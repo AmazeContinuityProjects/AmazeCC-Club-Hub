@@ -4,7 +4,7 @@ import { View, Text, Image, Card, CardContent, Input, Label, Button, LoadingSpin
 import { apiFetch } from "@/lib/api";
 import { ShieldCheck } from "lucide-react";
 
-export default function LoginPage({ onLogin }: { onLogin: (token: string, roles: any[]) => void }) {
+export default function LoginPage({ onLogin }: { onLogin: (token: string, roles: { club_id: string; role: string }[]) => void }) {
   const [username, setUsername] = useState(process.env.NEXT_PUBLIC_VTOP_USERNAME || "");
   const [password, setPassword] = useState(process.env.NEXT_PUBLIC_VTOP_PASSWORD || "");
   const [loading, setLoading] = useState(false);
@@ -22,7 +22,7 @@ export default function LoginPage({ onLogin }: { onLogin: (token: string, roles:
       if (data.success) {
         if (data.clubToken) {
           // Deduplicate club roles by club_id, prioritizing super-club-rep
-          const roleMap = new Map<string, any>();
+          const roleMap = new Map<string, { club_id: string; role: string }>();
           for (const r of (data.clubRoles || [])) {
             if (!r?.club_id) continue;
             const existing = roleMap.get(r.club_id);
@@ -37,7 +37,7 @@ export default function LoginPage({ onLogin }: { onLogin: (token: string, roles:
           onLogin(data.clubToken, uniqueRoles);
         } else setError("You do not have club representative privileges.");
       } else setError(data.message || data.error || "Login failed");
-    } catch (err: any) { setError(err.message || "An unexpected error occurred"); }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : "An unexpected error occurred"); }
     finally { setLoading(false); }
   };
 
@@ -92,7 +92,7 @@ export default function LoginPage({ onLogin }: { onLogin: (token: string, roles:
                 <Input
                   required
                   value={username}
-                  onChange={(e: any) => setUsername(e.target.value.toUpperCase())}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value.toUpperCase())}
                   className="uppercase"
                   placeholder="21BCE0000"
                 />
@@ -103,7 +103,7 @@ export default function LoginPage({ onLogin }: { onLogin: (token: string, roles:
                   required
                   type="password"
                   value={password}
-                  onChange={(e: any) => setPassword(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                   placeholder="••••••••"
                 />
               </View>

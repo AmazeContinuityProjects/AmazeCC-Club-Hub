@@ -9,47 +9,83 @@
   }
 }
 
-/* Apply to everything */
+/* ── Scrollbar ─────────────────────────────────────────────────────── */
 * {
-  scrollbar-width: thin;              /* Firefox */
-  scrollbar-color: #9ca3af #1f2937;   /* thumb (gray-400) track (gray-800) */
-  -webkit-tap-highlight-color: transparent; /* Remove blue tap highlight on mobile */
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.55 0.01 260 / 0.6) transparent;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  overscroll-behavior-y: none; /* Prevent pull-to-refresh and bounce on mobile */
-  user-select: none; /* Make text unselectable to feel like a native app */
+  overscroll-behavior-y: none;
+  user-select: none;
 }
 
 input, textarea, [contenteditable] {
-  user-select: auto; /* Keep text fields selectable */
+  user-select: auto;
 }
 
-/* Chrome, Edge, Safari */
 *::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 *::-webkit-scrollbar-track {
-  background: #1f2937; /* gray-800 */
-  border-radius: 9999px; /* fully rounded track */
+  background: transparent;
 }
 
 *::-webkit-scrollbar-thumb {
-  background-color: #9ca3af; /* gray-400 */
-  border-radius: 9999px;     /* pill/curvy scrollbar */
-  border: 2px solid #1f2937; /* adds spacing effect */
+  background-color: oklch(0.55 0.01 260 / 0.5);
+  border-radius: 9999px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background-color: #d1d5db; /* lighter gray on hover (gray-300) */
+  background-color: oklch(0.65 0.01 260 / 0.7);
 }
 
+/* ── Animations ────────────────────────────────────────────────────── */
 @keyframes fadeIn {
-  from { opacity: 0 }
-  to { opacity: 1 }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.25s ease-out;
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-slideUp {
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Grid background pattern ───────────────────────────────────────── */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, oklch(0.5 0.01 260 / 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.5 0.01 260 / 0.07) 1px, transparent 1px);
+  background-size: 3rem 3rem;
+}
+
+/* ── Glassmorphism utility ─────────────────────────────────────────── */
+.glass {
+  background: oklch(0.15 0.01 260 / 0.6);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid oklch(1 0 0 / 0.06);
+}
+
+.glass-light {
+  background: oklch(0.98 0 0 / 0.75);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid oklch(0 0 0 / 0.08);
 }

@@ -1,44 +1,52 @@
 ---
 title: "Sidebar"
-description: "The desktop nav rail - roles, club switcher, theme control and logout, straight down the props list."
+description: "The desktop rail - every row on it, tied to the exact props and access rules behind it."
 ---
 
 # Sidebar
 
-**File:** `src/components/Sidebar.tsx` · **Rendered by:** `page.tsx` in the `hidden md:block` branch · **Props:** the shell's state + actions
+**File:** `src/components/Sidebar.tsx` · **Rendered by:** `page.tsx` on screens ≥ `md:` width · **Props:** the whole shell state
 
-> **In one line:** desktop-only navigation: club switch (if >1), four tab entries, theme switcher, logout.
+> **In one line:** the fixed left rail on desktops - logo, club picker, tab list (Reps only for super reps), theme switch, logout.
 
-## Props (exactly)
+## The props you need to understand one screen
 
 ```tsx
 interface SidebarProps {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-  roles: any[];
-  activeClubId: string | null;
-  switchClub: (id: string) => void;
-  handleLogout: () => void;
-  isSuperRep?: boolean;
+  activeTab: string;            // which tab is highlighted
+  setActiveTab: (tab: string) => void;   // switch tabs (never called with unknown ids)
+  roles: any[];                 // your club reps, as the shell computed them
+  activeClubId: string | null;  // which club you're editing
+  switchClub: (id: string) => void;      // change active club
+  handleLogout: () => void;              // nuke localStorage
+  isSuperRep?: boolean;         // is your role for THIS club 'super-club-rep'?
 }
 ```
 
-## Behaviour
+If you understand these seven, you understand the sidebar's whole decision space.
 
-| Block | What it does |
-|---|---|
-| Header | logo + "Club Hub" + `<ThemeSwitcher />` |
-| Club selector | >1 role → `OptionPicker` with one option per represented `club_id`; exactly 1 → static pill with the club id |
-| Tab list | `Feed Manager`, `Club Details`, `Landing Page` - and `Manage Reps` **only when `isSuperRep`** |
-| Reps badge | `Manage Reps` row carries `<Badge variant="warning" size="sm">Admin</Badge>` for super reps |
-| Logout | ghost button, `text-danger`, `flex-row` wrapper for the icon+text (RN-web stacking fix) |
+## What each row does
 
-## Notes
+| Row | Behavior | Visibility |
+|---|---|---|
+| Logo + "Club Hub" | purely decorative | always |
+| Theme switcher | flips light/dark/midnight | always |
+| Club picker | `roles.length > 1` → an `OptionPicker` with one entry per club; exactly 1 → a static pill showing the club id | always |
+| Feed Manager | sets `activeTab("feed")` | always |
+| Club Details | sets `activeTab("details")` | always |
+| Landing Page | sets `activeTab("landing")` | always |
+| Manage Reps | sets `activeTab("reps")`; carries a `<Badge>Admin</Badge>` | **only when `isSuperRep`** |
+| Logout | pale button, `text-danger`; splices the three localStorage keys | always |
 
-- **The reps tab visibility logic is duplicated** (here and in `page.tsx`'s `mobileNavItems`): both gate on `isSuperRep` derived from the token's role for the *active* club. Switching to a non-rep club hides the tab automatically.
-- The badge exists because super-reps manage *other reps*; regular reps manage only the club.
+## The same rule, three places
+
+The Reps tab appears only when you're a super rep **for the club you're editing**. That predicate is computed in `page.tsx` (`activeRole === "super-club-rep"`), passed down as `isSuperRep`, and consulted identically by the sidebar here, the mobile bottom nav, and the conditional render branch. **One computation, three consumers** - if you ever see all three drift apart, page.tsx is the source of truth, not the children.
+
+## Why no icons collapse, hover-z, etc.
+
+This is a fixed 256px rail. It doesn't collapse; it just hides below `md:`. The phone UI is different components on purpose (`page.tsx` renders `MobileBottomNav` and a separate top bar) because tab density and touch targets are different animals on small screens.
 
 ## Where to next
 
-- **[page.tsx](./page.md)** - the state owner this component mirrors.
+- **[The page & its tabs](./page.md)** - the parent that feeds these props.
 - **[ThemeSwitcher](./theme-switcher.md)**

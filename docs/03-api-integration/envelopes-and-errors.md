@@ -1,60 +1,50 @@
 ---
 title: "Envelopes & errors"
-description: "The two response dialects, the success gate, and every error-handling pattern used in the code - including the ones that swallow."
+description: "Every response shape in this app, and every way it fails, in one page - so you never guess which branch a route takes."
 ---
 
 # Envelopes & errors
 
-> **In one line:** wrap your brain in `data.success` - and learn which few endpoints don't have one.
+> **In one line:** most answers start `{ "success": … }`; a few don't — learn the two dialects and the few ways code deliberately swallows errors.
 
-## The wrapped majority (every mutation + most reads)
+## Dialect 1 — wrapped (almost everything)
 
-```ts
-const data = await res.json();
-if (data.success) { /* … */ } else { /* banner or alert with data.error */ }
+```json
+{ "success": true, "post": { "id": 7, … } }
+{ "success": false, "error": "Content is required" }
 ```
 
-Failing that gate with a truthy `data.error`/`data.message` gives you a human message. Components surface it verbatim in an `<Alert>` banner or `alert()`.
+Your job as an engineer on this codebase:
 
-## The raw exceptions
+1. Parse JSON.
+2. Test `data.success`. Never trust HTTP status alone.
+3. On false, show `data.error` (user-visible) — it's always English.
 
-| Endpoint | Success body | Failure body | Branch on |
-|---|---|---|---|
-| `GET /api/events` | bare array | anything? unclear - always checked with `res.ok` | `res.ok` |
-| (none others consumed by this app) | | | |
+## Dialect 2 — raw (exactly one route)
 
-That's it - this app is majority `success`-wrapped; the only raw call in active use is the events picker.
+`GET /api/events` returns a bare JSON array. Code detects it with `res.ok` + `Array.isArray(…)`. Nothing else. (If you ever add a new raw route, document it here and in `03-api-integration/`.)
 
-## HTTP status meaning in this app
+## The swallow list
 
-| Status | Body shape | App behavior |
+These are deliberate, not lazy:
+
+| Swallow | Where | Why |
 |---|---|---|
-| 200 (most) | `{ success: true, … }` | proceed |
-| 200 + `success: false` | `{ success: false, error }` | banner/alert |
-| 400 | `{ success: false, error: "Content is required" }` etc. | banner/alert |
-| 401 | `{ success: false, error: "Unauthorized Club Access" }` | components show empty states (no redirect) |
-| 403 | `{ success: false, error: "Unauthorized: Only super-club-reps can …" }` | banner |
-| 404 | `{ success: false, error: "Post not found" }` | banner |
-| 429 | global rate-limit body (+`Retry-After`) | banner |
-| 500/502/504 | `{ error }` or `{ success: false, error }` | banner |
+| `AbortError` after unmount | every `useEffect` cleanup | StrictMode double-mounts in dev; a stop-signal isn't an error |
+| Failed initial fetch → empty state | all four tab managers | a spinner forever is worse than a blank feed |
+| Dev convenience env keys | `LoginPage` | harmless, public, default empty |
 
-## Errors that deliberately vanish
+## Errors that look like success
 
-1. **`AbortError`** - StrictMode's double-effect, or an aborted club switch during fetch: swallowed silently everywhere. `catch (err) { if (err?.name === "AbortError") return; }` - looks like a bug, isn't.
-2. **Initial load failures** - `FeedManager`/`RepManager`/etc. on fetch failure set state to `[]` and log to console. The UI renders the empty state; nothing crashes. Deliberate: never block a club admin on a transient 500.
-3. **`handleImageSelect`** - object URL assignment can't really fail; no error path exists (fine for blob URLs).
+- `200 + { success:false }` — the server processed your request just fine, it just doesn't like what you said. **Status 200 does not mean "do what I asked" here.**
+- `401 + { success:false }` — your club token is invalid/expired. The app shows empty states, no redirect (known issue).
+- `503 + sanitized "Database temporarily unavailable"` — the API's DB broke; retry later.
 
-## Toast/banner mechanics
+## One rule to keep your sanity
 
-| Helper pattern | Where | Auto-dismiss |
-|---|---|---|
-| `setMessage({type, text})` + fixed `<Alert>` | LandingPageBuilder, RepManager, ClubDetailsEditor | `setTimeout` 4–5 s |
-| `alert(data.error)` | FeedManager compose/delete | OS dialog |
-| `""` (empty text) | all | hides the banner |
-
-Banners render above everything (`fixed bottom-24 right-6 z-50`) with slide-in animations. There's no deduplication or stacking - rapid failures toggle the same slot.
+When in doubt: `console.log(res.status, await res.clone().text())`. The API is readable with `curl`; reproduce any screen in a terminal with `curl -H "Authorization: Bearer $CLUB_TOKEN" https://api.amazecc.com/api/…`.
 
 ## Where to next
 
-- **[LocalStorage keys](../05-reference/localstorage-keys.md)**
+- **[Operations → security](../04-operations/security.md)**
 - **[Known issues](../05-reference/known-issues.md)**

@@ -1,72 +1,87 @@
 ---
 title: "LoginPage"
-description: "The VTOP login gate - exact request/response handling, role dedupe, and the two places identity comes from."
+description: "The one gate - the credentials form, the exact JSON the API wants, the exact JSON it sends back, and what happens in each branch."
 ---
 
 # LoginPage
 
-**File:** `src/components/LoginPage.tsx` · **Rendered when:** `page.tsx` has no `club_token` in localStorage · **Calls:** `apiFetch("/api/login")`
+**File:** `src/components/LoginPage.tsx` · **Shown when:** no `club_token` in localStorage · **Job:** turn your VTOP password into a club admin session
 
-> **In one line:** VTOP credentials in, club token out - the API (not this page) decides whether you're a club rep.
+> **In one line:** the screen asks VTOP *"is this person who they say they are, and may they represent clubs?"* - the API answers; this app just relays.
 
-## Props and state
+## What you're looking at on screen
+
+- a centered glass card with the AmazeCC logo,
+- a **VTOP Username** field (auto-uppercased as you type),
+- a **VTOP Password** field,
+- one button: **Authenticate via VTOP** - named that way because VTOP is doing the actual work, not us,
+- a spinner overlay ("VTOP Authentication / Establishing secure gateway…") while waiting.
+
+## The state, in one table
+
+| State | Type | What it does |
+|---|---|---|
+| `username` | string | the registration number; `onChange` forces uppercase |
+| `password` | string | what you type; starts empty (unless the dev-only `NEXT_PUBLIC_VTOP_PASSWORD` is set) |
+| `loading` | boolean | shows the spinner overlay and disables the button while we wait |
+| `error` | string | red alert box text; `""` when hidden |
+
+## The submit handler, annotated
 
 ```tsx
-export default function LoginPage({ onLogin }: { onLogin: (token: string, roles: any[]) => void })
-```
-
-| State | Type | Meaning |
-|---|---|---|
-| `username` | string | registration number, auto-uppercased in `onChange`; defaults to `NEXT_PUBLIC_VTOP_USERNAME` if defined (dev convenience) |
-| `password` | string | raw password; defaults to `NEXT_PUBLIC_VTOP_PASSWORD` (dev convenience) |
-| `loading` | boolean | drives the fullscreen overlay + button disable |
-| `error` | string | alert text; empty string hides |
-
-## The submit path, exactly
-
-```ts
 const res = await apiFetch("/api/login", {
-  method: "POST", headers: { "Content-Type": "application/json" },
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ username, password }),
 });
-const data = await res.json();
-if (data.success) {
-  if (data.clubToken) {
-    // dedupe clubRoles by club_id (super-club-rep wins) — same Map trick as page.tsx
-    const roleMap = new Map<string, any>();
-    for (const r of data.clubRoles || []) {
-      if (!r?.club_id) continue;
-      const existing = roleMap.get(r.club_id);
-      if (!existing || r.role === "super-club-rep") roleMap.set(r.club_id, r);
-    }
-    const uniqueRoles = Array.from(roleMap.values());
-    localStorage.setItem("club_token", data.clubToken);
-    localStorage.setItem("club_roles", JSON.stringify(uniqueRoles));
-    onLogin(data.clubToken, uniqueRoles);
-  } else setError("You do not have club representative privileges.");
-} else setError(data.message || data.error || "Login failed");
+const data = await res.json();                       // API answered
 ```
 
-Key facts a junior will trip on:
+Then three branches, exactly:
 
-- **`apiFetch` is used here too** - login sends the (absent) `Authorization` header case harmlessly; the API ignores it on `/api/login`.
-- **`data.success` is the gate, not HTTP status.** A 200 with `success:false` means VTOP said no.
-- **`clubToken` presence is the club-rep check.** The API only issues it when your authorizedID appears in `club_representatives`. No club rep? `success:true` but no `clubToken` - and this page shows the "no club representative privileges" error.
-- **`clubRoles` is stored twice**: raw JSON in `localStorage` (read at boot by `page.tsx`) and as `uniqueRoles` passed to `onLogin` (kept in React state). Identical data, two consumers.
-- **Deduplication is duplicated on purpose** (here and in `page.tsx`): `page.tsx` re-derives on boot because devs may hand-edit localStorage.
-- The catch-all writes `err.message` into the same banner; `finally` always clears `loading`.
+```tsx
+if (data.success) {
+  if (data.clubToken) {
+    // 1) Dedupe club roles by club_id, super-club-rep wins on conflict
+    const roleMap = new Map<string, any>();
+    for (const r of data.clubRoles || []) {
+      if (!r?.club_id) continue;                     // skip malformed entries
+      const existing = roleMap.get(r.club_id);
+      if (!existing || r.role === 'super-club-rep') roleMap.set(r.club_id, r);
+    }
+    const uniqueRoles = Array.from(roleMap.values());
+    // 2) Persist the session
+    localStorage.setItem("club_token", data.clubToken);
+    localStorage.setItem("club_roles", JSON.stringify(uniqueRoles));
+    // 3) Hand control back to the shell
+    onLogin(data.clubToken, uniqueRoles);
+  } else {
+    setError("You do not have club representative privileges.");
+  }
+} else {
+  setError(data.message || data.error || "Login failed");
+}
+```
 
-## Rendering details
+Read the three branches as three truths the API can tell us:
 
-- Fullscreen glow/orb background, glass `Card` (`variant="glass"`), `LoadingSpinner` overlay during the request with the two-line "VTOP Authentication / Establishing secure gateway…" copy.
-- Inputs are uncontrolled-ish controlled with RN-web `Input`; username forced uppercase client-side.
-- Button label: "Authenticate via VTOP" (not "Login" - deliberate branding of the VTOP dependency).
+1. **"Yes, you exist, and yes, you represent clubs"** → token + roles. The app stores them and moves on.
+2. **"Yes, you exist, but no club privileges"** → you're logged in as a student, just not a rep; the screen tells you so and stops. (You can use VTOP for real things; club admin isn't one of them.)
+3. **"No." (`success: false`)** → wrong password, blocked account, or captcha failure; the API's `message`/`error` is shown verbatim.
 
-## After login
+## Why VTOP does the real work
 
-`onLogin` in `page.tsx` sets `token`, dedupes roles again, picks the first club as `active_club_id`, writes it to localStorage - the app then renders the shell. **No token refresh, no expiry handling**: club tokens live 7 days (API-side); when one dies every `apiFetch` comes back 401 (the club-admin routes fail with 401 `Unauthorized Club Access`), components show their empty states, and only a manual logout → re-login refreshes. See [known issues](../05-reference/known-issues.md).
+VTOP already has your password. The API knows how to prove that to VTOP (it solves a CAPTCHA, replays the request, follows redirects - you don't have to care). **Your password never touches this repo** - it's posted once to the API over HTTPS and discarded. This app stores only the club token the API mints afterwards (7-day expiry, HMAC-signed).
+
+## What "you don't have club privileges" really means
+
+The API checks whether your registration number appears in `club_representatives` for at least one club. If it appears anywhere, you get a token listing those clubs; else you get a successful login with no club privileges and no token. The fix for that state exists outside this app: a super rep adds your number (from the Reps tab).
+
+## The dev-only convenience nobody should use in prod
+
+`NEXT_PUBLIC_VTOP_USERNAME` / `NEXT_PUBLIC_VTOP_PASSWORD` pre-fill the form when defined. They're baked in at build time - so if they were ever committed (they aren't), everyone who downloaded the JS would read them. Leave them empty; that's the default.
 
 ## Where to next
 
-- **[The auth flow](../03-api-integration/auth-flow.md)** - the full contract, both sides.
-- **[page.tsx](./page.md)** - what happens after `onLogin`.
+- **[The page & its tabs](./page.md)** - what happens the instant `onLogin` returns.
+- **[Auth flow](../03-api-integration/auth-flow.md)** - the same dance from the API's side.

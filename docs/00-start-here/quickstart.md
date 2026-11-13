@@ -1,59 +1,95 @@
 ---
 title: "Quickstart"
-description: "Clone, install, run, and sign in to Club Hub locally - five minutes, needs a VTOP account with club rep privileges."
+description: "Five minutes from clone to running - then a grand tour of what you're looking at. No webdev experience required."
 ---
 
 # Quickstart
 
-> **In one line:** clone, `pnpm install`, `pnpm dev`, open port 3003, sign in with your VTOP credentials - and if you represent a club, you land on the feed manager.
+> **In one line:** clone, install, run on port 3003, open it in your browser, sign in with VTOP - and if you represent a club, you land on the feed manager.
 
-## What you need
+## What you need (and what these things actually are)
 
-- **Node.js 22** and **pnpm 11.24.0** (pinned via `packageManager` in `package.json`).
-- A **VTOP account with club representative privileges** (the API decides: `club_representatives` rows for your registration number, or you'd represent no club and see nothing). Without one you can still log in - the app just tells you so and stays put.
-- The AmazeCC API running at `NEXT_PUBLIC_API_URL`. This repo's committed `.env` points at `http://localhost:3000`, i.e. a local AmazeCC-API. Production uses `https://api.amazecc.com` (the default in `src/lib/api.ts` when unset).
+| Thing | What it is |
+|---|---|
+| **Node.js** | the engine that runs JavaScript outside the browser - the "server side" of this app's tooling |
+| **pnpm** | a fast package manager (like npm, but stricter and slimmer) - it fetches the libraries this app needs and remembers the exact versions |
+| **A VTOP account with club rep privileges** | without it you can start the app, but you'll see "You do not have club representative privileges" after login - because the API tracks which clubs you represent |
 
-## Run it
+## The commands, one at a time
 
 ```bash
 git clone https://github.com/AmazeContinuityProjects/AmazeCC-Club-Hub.git
+# copies this repo's files onto your machine
+
 cd AmazeCC-Club-Hub
+# move into the folder you just got
+
 pnpm install
+# download every library the app needs (creates node_modules/);
+# can take a minute the first time
+
 pnpm dev
+# start the development server
 ```
 
-Open **http://localhost:3003**. Port 3003 is deliberate (AmazeCC's own dev server owns 3000).
+Open **http://localhost:3003**. (GitHub Pages serves port 3000 for AmazeCC itself; this repo uses **3003** to avoid fighting over the same address.)
 
-## Sign in
+## What you'll see when it works
 
-1. Enter your VTOP registration number and password.
-2. Submit. The app POSTs them to `${NEXT_PUBLIC_API_URL}/api/login`.
-3. The API verifies them against VTOP (solving its captcha server-side) and returns, among other things, a `clubToken` if your account represents at least one club.
-4. You land on **Feed Manager** with your first represented club pre-selected.
+```
+┌─────────────────────────────┐
+│       AmazeCC Club Hub       │
+│   sign in with VTOP creds    │
+│                             │
+│   [ 21BCE0000        ]      │
+│   [ •••              ]      │
+│                             │
+│   [ Authenticate via VTOP ]  │
+└─────────────────────────────┘
+```
+
+Every pixel of that screen is rendered by code in this repo - nothing comes from VTOP or the API except your login result.
+
+## The tour (two minutes, well spent)
+
+1. **Log in.** The app POSTs your credentials to the API; the API verifies them against VTOP and answers with (a) whether you represent any clubs and (b) a stamped badge (`clubToken`) if you do.
+2. **You land on Feed Manager** - your club's timeline of posts, with a card to write a new one.
+3. **Club Details** (left sidebar or the Details tab) - edit your club's public profile.
+4. **Landing Page** - curate which projects and events get showcased.
+5. **Manage Reps** - only appears if you're a **super** club rep; grant/revoke access to others.
 
 <Warning>
-**If you don't represent a club**, login still succeeds but you'll see the alert
-"You do not have club representative privileges." That's the API's answer, not a
-bug in this app.
-</Warning>
-
-## Check your build
+**The committed `.env` tells this app the API lives at `http://localhost:3000`.**
+That's a *local* AmazeCC-API. If you don't run the API locally, the app will
+just sit there spinning on login. Either run the API locally too (see the
+AmazeCC-API handbook's quickstart), or override for your session:
 
 ```bash
-pnpm lint        # ESLint
-pnpm typecheck   # tsc --noEmit
-pnpm build       # Next.js static export -> out/
-test -f out/index.html && echo "export OK"
+NEXT_PUBLIC_API_URL=https://api.amazecc.com pnpm dev
+```
+</Warning>
+
+## Prove your build works (the same checks CI runs)
+
+```bash
+pnpm lint         # style issues
+pnpm typecheck    # type mistakes
+pnpm build        # produce the static site (output → out/)
+test -f out/index.html && echo "export OK"   # the file Pages would serve
 ```
 
-All three run in CI on every PR (see [CI & security](../04-operations/ci.md)).
+## If something goes wrong
 
-## Two things that will trip you up immediately
-
-1. **The committed `.env` points at `http://localhost:3000`.** If you don't run AmazeCC-API locally, set `NEXT_PUBLIC_API_URL=https://api.amazecc.com` in your shell before `pnpm dev`, or edit the `.env` locally. Do not commit your change.
-2. **Login hits the real VTOP through the real API** - there is no offline demo mode. Use your own credentials; never paste anyone else's into the login form.
+| What you see | Likely truth |
+|---|---|
+| Blank/spinning page, no error | the API isn't reachable at `NEXT_PUBLIC_API_URL` (see warning above) |
+| "You do not have club representative privileges." | login worked; VTOP agrees you exist; the API knows no club links you - talk to your club's super rep |
+| "Invalid Captcha" | the API's puzzle-solver failed once; hit submit again |
+| "Invalid Username / Password" | VTOP rejected the credentials - check them; after repeated failures VTOP itself may block temporarily |
+| `pnpm` not found | install pnpm first: `npm install -g pnpm@11.24.0` (or see pnpm docs) |
 
 ## Where to next
 
-- **[How it works, end to end](./how-it-works.md)**
-- **[The auth flow](../03-api-integration/auth-flow.md)** - exactly what the API returns.
+- **[How it works, end to end](./how-it-works.md)** - follow one click from tap to API and back.
+- **[The auth flow](../03-api-integration/auth-flow.md)** - what the server actually checks.
+- **[Conventions](./conventions.md)** - how code in this repo thinks.

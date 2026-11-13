@@ -1,50 +1,42 @@
 ---
 title: "CI"
-description: "What runs on every PR - gitleaks, the malware signature scan, lint, typecheck, build, dependency audit - and why the scan exists."
+description: "What runs on every pull request, why there's a malware scan, and what 'green CI' actually proves."
 ---
 
 # CI
 
-> **In one line:** PRs get secret-scanned, malware-scanned, linted, typechecked and built; pushes to `main` additionally deploy to GitHub Pages.
+> **In one line:** every PR and `main` push gets scanned for leaked secrets, crypto-mining signatures, lint errors, type errors, and a build - then deployed.
 
-## `ci.yml` — what every PR and push to main runs
+## What runs, exactly
 
-| Job | What it does | Blocking? |
+| Job | What it checks | If it fails |
 |---|---|---|
-| `safety` | **gitleaks** secret scan · **malware signature scan** (see below) | yes |
-| `safety` | `pnpm audit --audit-level=high` | **no** (`continue-on-error: true`) |
-| `lint` | `pnpm lint` (ESLint flat config) | yes |
-| `typecheck` | `pnpm exec tsc --noEmit` | yes |
-| `build` | `pnpm build` + verifies `out/index.html` exists | yes |
+| **safety** | `gitleaks` + `grep` for known crypto-drainer payloads + `pnpm audit --audit-level=high` (never blocks) | build stops |
+| **lint** | `pnpm lint` (eslint) | style accepted nowhere |
+| **typecheck** | `pnpm exec tsc --noEmit` | type errors unmergeable |
+| **build** | `pnpm build` + `test -f out/index.html` | no deploy |
 
-Runs on PRs to `main` and pushes to `main`. Concurrency group cancels in-flight runs on the same ref.
-
-## The malware signature scan — read this before removing it
+## The malware scan, explained
 
 ```yaml
 - name: Malware signature scan
   run: |
-    if grep -rIl --exclude-dir=.github … -e 'eth_getBlockByNumber' -e '/0x/cls' …; then
+    if grep -rIl --exclude-dir=.github … \
+      -e 'eth_getBlockByNumber' -e '/0x/cls' -e 'global\.i="A9-971-1"' …; then
       echo "::error::Suspicious malware markers found in tracked files!"
       exit 1
     fi
 ```
 
-The comment in the workflow is explicit: this repo previously carried **appended crypto-drainer/C2 droppers** in config files. Someone committed a poisoned config; CI now blocks the known families (`eth_getBlockByNumber`, `x-payload-b64`, `app-vscode-eval`, wallet-drainer C2 patterns). It does not prove the repo is clean — it proves a specific dirty history can't silently return.
+This repo previously shipped **crypto-drainer droppers appended to config files** — someone poisoned the repo on purpose. The scan is a tripwire, not a proof. It detects those specific historical families by their embedded strings: wallet-drainer C2 markers, `eth_getBlockByNumber` (watching for transfers), `app-vscode-eval`, `x-payload-b64`.
 
-<Warning>
-**Do not remove this step.** If you ever inherit this repo with a green CI and
-don't recognize this check, it is load-bearing. If you want to replace it with
-something better (e.g. a real SAST), do that knowingly.
-</Warning>
+**Do not delete this step.** If you see a red X on it on a PR you didn't expect, ask before touching anything - that's why it's there.
 
-## `nextjs.yml` — what pushes to `main` additionally do
+## What CI proves, what it doesn't
 
-Builds with `actions/configure-pages@v5` (injects `basePath`, disables image optimization), uploads `out/` via `upload-pages-artifact`, deploys to the `github-pages` environment. See [deployment](./deployment.md) for what this means operationally.
+**Proves:** the repo builds, lints, typechecks, passes basic secret scanning, and has no known flagged patterns.
 
-## Dependabot
-
-This repo is on Dependabot's weekly schedule (npm_and_yarn group); there are currently ~10 open dependency PRs. Merge them when CI is green — CI is the meaningful gate, not the review.
+**Doesn't prove:** that the app actually works against the live API, that a hacked `.env` got cleaned, or that your VTOP session is valid. Those you verify yourself.
 
 ## Where to next
 

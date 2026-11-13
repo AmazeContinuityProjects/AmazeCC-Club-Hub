@@ -1,62 +1,60 @@
 ---
 title: "The AmazeCC context"
-description: "The ecosystem map - what each repo owns, and exactly which API endpoints this app consumes."
+description: "The ecosystem family tree - what each repo is for, and the exact twelve endpoints this app consumes."
 ---
 
 # The AmazeCC context
 
-> **In one line:** this app is a thin client to the AmazeCC API - the API owns auth, data and business logic; this app owns none of them.
+> **In one line:** Club Hub is a small remote control for one slice of one API - know what the rest of the family does, or you'll wonder why changes here don't stick.
 
-## The family
+## The family tree in five seconds
 
-| Repo | Role | Stack |
+| Repo | What it is | One sentence |
 |---|---|---|
-| **AmazeCC-API** | source of truth: VTOP/LMS scraping, club auth, club admin endpoints, Postgres | Next.js route handlers |
-| **AmazeCC** | the student-facing app | React Native |
-| **AmazeCC-Dashboard** | the ops/admin portal (GoRobo, CabShare, transport) | Next.js static, similar pattern |
-| **AmazeCC-Club-Hub** | **this repo** - the club-admin console | Next.js static export, RN-web |
-| **docs** | this handbook site | Mintlify |
-| **landing** | the public landing page | static |
+| `AmazeCC-API` | the backend (the only place with a database) | scrapes VTOP/LMS, serves the JSON everything else uses |
+| `AmazeCC` | the student-facing app | the VIT student portal, on your phone |
+| `AmazeCC-Dashboard` | the admin panel for ops staff | GoRobo shop, CabShare, transport, QBank moderation - staff-facing |
+| `AmazeCC-Club-Hub` | **this repo** | the club-admin console, for club representatives |
+| `docs` | the handbook you're reading | a Mintlify site that aggregates every repo's `docs/` |
+| `landing` | the public marketing page | one big page |
 
-<Note>
-The API contract lives in the
-[AmazeCC-API handbook](https://docs.amazecc.com/amazecc-api) - response field
-tables are published there, so this handbook links to them instead of
-duplicating them.
-</Note>
+## The API membrane
 
-## Every endpoint this app calls
+Every dynamic byte Club Hub shows crosses `https://api.amazecc.com` (or wherever `NEXT_PUBLIC_API_URL` points). The app contains **zero secrets** and **zero database code**. If a value looks sensitive (`postgres://…`, `VTOP_PASSWORD`, HMAC keys), it belongs in the API's own environment - never in this repo, never in `NEXT_PUBLIC_*`.
 
-| Method & path | Used by | Purpose |
+## The exact API endpoints this app calls
+
+Twelve calls, tabulated - every single one goes through `apiFetch`:
+
+| Method/Path | Used by | Effect |
 |---|---|---|
-| `POST /api/login` | `LoginPage.handleLogin` | VTOP-verified login; returns `clubToken` + `clubRoles` |
-| `GET /api/events` | `FeedManager.fetchEvents` | public event list for the "link to an event" picker |
-| `GET /api/club-admin/feed?club_id=…` | `FeedManager.fetchPosts` | feed timeline for one club (public read, optional club filter) |
-| `POST /api/club-admin/feed` | `FeedManager.handleSubmit` | create a post |
-| `DELETE /api/club-admin/feed?post_id=…` | `FeedManager.handleDelete` | delete a post |
-| `GET /api/club-admin/landing-page?club_id=…` | `LandingPageBuilder.fetchData` | read the showcase page config |
-| `POST /api/club-admin/landing-page` | `LandingPageBuilder.saveAll` | upsert the showcase page config |
-| `GET /api/club-admin/details?club_id=…` | `ClubDetailsEditor` | read public club details |
-| `POST /api/club-admin/details` | `ClubDetailsEditor.handleSave` | update public club details |
-| `GET /api/club-admin/reps?club_id=…` | `RepManager.fetchReps` | list representatives |
-| `POST /api/club-admin/reps` | `RepManager.handleAdd` | grant representation |
-| `DELETE /api/club-admin/reps?vtop_id=…&club_id=…` | `RepManager.handleDelete` | revoke representation |
+| `POST /api/login` | `LoginPage` | proves identity, returns club token (+roles) |
+| `GET /api/events` | `FeedManager`'s picker | public list of eventhub events |
+| `GET /api/club-admin/feed?club_id=` | `FeedManager` | list the timeline |
+| `POST /api/club-admin/feed` | `FeedManager` | create a post |
+| `DELETE /api/club-admin/feed?post_id=` | `FeedManager` | delete a post |
+| `GET /api/club-admin/landing-page?club_id=` | `LandingPageBuilder` | read the showcase config |
+| `POST /api/club-admin/landing-page` | `LandingPageBuilder` | upsert the showcase config |
+| `GET /api/club-admin/details?club_id=` | `ClubDetailsEditor` | read the public card |
+| `POST /api/club-admin/details` | `ClubDetailsEditor` | update the public card |
+| `GET /api/club-admin/reps?club_id=` | `RepManager` | list reps |
+| `POST /api/club-admin/reps` | `RepManager` | add a rep |
+| `DELETE /api/club-admin/reps?vtop_id=…` | `RepManager` | remove a rep |
 
-That's the complete list - 12 calls, every one carrying `Authorization: Bearer <clubToken>` (except `GET /api/events`, which is public) and `X-Club-Id: <active_club_id>`.
+**That's the entire contract.** If a feature isn't in this list, it's not done here - it lives in the API first, then gets a tab here.
 
-## Who owns what, precisely
+## Who owns what (the only part you must memorize)
 
 | Concern | Owner |
 |---|---|
-| VTOP authentication | AmazeCC-API (`POST /api/login`) |
-| Club token issuance & verification | AmazeCC-API (`clubAuth.ts`) |
-| `club_representatives` table | AmazeCC-API (Postgres) |
-| Feed storage, landing page storage, details storage | AmazeCC-API (Postgres) |
-| **All UI state** (drafts, previews, tab selection) | **this repo** (React state) |
-| Offline behavior | none - dead connection, dead app |
-| Public club pages | the AmazeCC app (reads what this writes via the same tables) |
+| VTOP password verification | the API |
+| Club token signing & checking | the API |
+| `club_representatives` table | the API (Postgres) |
+| club_feed, club_details, club_landing_pages rows | the API (Postgres) |
+| **All UI state:** drafts, previews, which tab you're on | **this repo** (React state) |
+| PWA install prompt | this repo (`manifest.json`) |
 
 ## Where to next
 
-- **[The auth flow](../03-api-integration/auth-flow.md)**
-- **[Response Shapes](https://docs.amazecc.com/amazecc-api/05-reference/response-shapes/clubs-events)** - exact payload fields (events/club-admin routes).
+- **[The auth flow](../03-api-integration/auth-flow.md)** - the login to API bridge, in detail.
+- **[API Integration](../03-api-integration/index.md)** - the same list, one page deeper.

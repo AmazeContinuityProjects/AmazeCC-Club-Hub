@@ -1,92 +1,92 @@
 ---
 title: "The page & its tabs"
-description: "page.tsx line by line - the shell, the club switcher, localStorage orchestration and tab mounting."
+description: "app/page.tsx walked through like a guided tour - what every line is doing, why there's one file, and where the state lives."
 ---
 
 # The page & its tabs
 
-**File:** `src/app/page.tsx` · **Rendered by:** `src/app/layout.tsx` (the one route) · **Parent of:** every tab component
+**File:** `src/app/page.tsx` · **Layer:** the only route in the app · **Our focus:** the frame every tab renders inside
 
-> **In one line:** the only screen - it owns login state, the active club and the active tab, and remounts a tab component whenever the club changes.
+> **In one line:** the only screen decides who you are, which club you're editing, and which tab you see - everything else lives inside four tab components.
 
-## Imports and constants
+## The four things the screen shows
 
-```tsx
-import LoginPage from "@/components/LoginPage";
-import FeedManager from "@/components/FeedManager";       // tab 1
-import LandingPageBuilder from "@/components/LandingPageBuilder"; // tab 3
-import Sidebar from "@/components/Sidebar";
-import ClubDetailsEditor from "@/components/ClubDetailsEditor";    // tab 2
-import RepManager from "@/components/RepManager";                  // tab 4
-import { getClubToken } from "@/lib/api";
-import { LogOut, MessageSquare, Info, LayoutTemplate, Users } from "lucide-react";
+```
+┌──────────────┬───────────────────────────────────────┐
+│  top bar:    │  Club Hub   [club picker] [theme] [⚙] │   ← small screens only
+├──────────────┴───────────────────────────────────────┤
+│  Sidebar   │  sticky header: "Feed Manager"          │
+│  - Feed    │  + one-line description + "Active" dot  │
+│  - Details │                                           │
+│  - Landing │  TAB CONTENT (one of four components)     │
+│  - Reps *  │                                           │
+└────────────┴───────────────────────────────────────────┘
+* only if super rep                                    bottom nav on phones
 ```
 
-`TAB_LABELS` and `TAB_DESCRIPTIONS` are plain string maps keyed by tab id - they feed the sticky header text. Add a tab → add entries there (and a render branch below).
-
-## `deduplicateRoles`
-
-```tsx
-const deduplicateRoles = (rawRoles: any[]) => {
-  const map = new Map<string, any>();
-  for (const r of (rawRoles || [])) {
-    if (!r?.club_id) continue;
-    const existing = map.get(r.club_id);
-    if (!existing || r.role === "super-club-rep") map.set(r.club_id, r);
-  }
-  return Array.from(map.values());
-};
-```
-
-The API can return one entry per club per role (and super-club-rep duplicates across grants). The UI wants **exactly one entry per `club_id`, preferring `super-club-rep`** - a Map keyed on club_id, overwriting on supers. Same logic is duplicated in `LoginPage.tsx` after login (see [auth-flow](../03-api-integration/auth-flow.md)).
-
-## State & boot effect
+## The state, explained
 
 ```tsx
 const [token, setToken] = useState<string | null>(null);
 const [roles, setRoles] = useState<any[]>([]);
 const [activeClubId, setActiveClubId] = useState<string | null>(null);
 const [activeTab, setActiveTab] = useState<string>("feed");
+```
 
+| Piece | Meaning in plain words |
+|---|---|
+| `token` | "Did I get my club badge yet?" - `null` until login; the login form is the whole screen until it flips. |
+| `roles` | "Which clubs do I represent?" - happens after login; needed to render the picker and know if I'm a super rep. |
+| `activeClubId` | "Which club's settings am I changing?" - `feed-…` keys remount the tab on change. |
+| `activeTab` | which of the four screens is visible. Defaults to Feed. |
+
+## Boot time, step by step
+
+```tsx
 useEffect(() => {
-  const storedToken = getClubToken();
+  const storedToken = getClubToken();            // token from localStorage, or null
   if (storedToken) {
     setToken(storedToken);
     const storedRoles = deduplicateRoles(JSON.parse(localStorage.getItem("club_roles") || "[]"));
     setRoles(storedRoles);
-    if (storedRoles.length > 0) {
-      const storedActive = localStorage.getItem("active_club_id");
-      if (storedActive && storedRoles.find(r => r.club_id === storedActive)) setActiveClubId(storedActive);
-      else { setActiveClubId(storedRoles[0].club_id); localStorage.setItem("active_club_id", storedRoles[0].club_id); }
+    const storedActive = localStorage.getItem("active_club_id");
+    if (storedActive && storedRoles.find(r => r.club_id === storedActive))
+      setActiveClubId(storedActive);              // keep your club if you still represent it
+    else if (storedRoles[0]) {
+      setActiveClubId(storedRoles[0].club_id);    // otherwise take the first one you represent
+      localStorage.setItem("active_club_id", storedRoles[0].club_id);
     }
   }
-}, []);
+}, []);                                          // [] = run exactly once on mount
 ```
 
-Boot sequence: read token → read roles (defensively, with try/catch) → pick the previously active club **if it still exists**, else the first represented club. The try/catch means corrupt `club_roles` JSON degrades to empty - the user is treated as logged out... actually as a rep with no clubs (logged in but nothing to do) - mildly awkward but deliberate.
+In plain words: on every page load, check localStorage for a saved session; if it exists and your clubs list is intact, restore exactly where you left off. If localStorage is corrupt, the try/catch quietly resets to logged-out state.
 
-## Handlers
+## The three handlers
 
-| Handler | Does |
-|---|---|
-| `switchClub(newClubId)` | writes `active_club_id`, sets state - tabs remount via `key` |
-| `handleLogin(newToken, newRoles)` | dedupes roles, stores token/roles, picks first club |
-| `handleLogout()` | **deletes the three localStorage keys** - no API call |
+- **`switchClub(id)`** - writes `active_club_id` and updates state; tab components unmount/remount via the `key` trick.
+- **`handleLogin(token, roles)`** - receives what LoginPage got back, dedupes roles (super wins), sets state, remembers the first club.
+- **`handleLogout()`** - **deletes the three localStorage keys**. No API call; the server cannot revoke anything; the session dies client-side.
 
-## Render skeleton
+## The conditional that decides your screen
 
-1. `if (!token) return <LoginPage onLogin={handleLogin} />;`
-2. `activeRole`/`isSuperRep` derived from roles; reps tab is conditionally available.
-3. Mobile top bar (`md:hidden`): logo, tab/club badge, club `OptionPicker` (when >1 club), `ThemeSwitcher`, logout icon.
-4. Mobile bottom nav (`md:hidden`): `MobileBottomNav` with Feed/Details/Landing(+Reps for supers).
-5. Desktop sidebar (`hidden md:block`): `<Sidebar … />`.
-6. Main column: sticky header (TAB_LABELS value + the TAB_DESCRIPTIONS blurb + a cosmetic "Active" dot), then the four tab branches - each wrapped in a key combining tab name and active club id, and mounted only when activeClubId is set. The reps tab additionally requires isSuperRep.
+```tsx
+if (!token) return <LoginPage onLogin={handleLogin} />;
+```
 
-## localStorage writes from this file
+Everthing above this line is "logged in" world: sidebar, tabs, editors. Everything below is the shell when a token exists. **There is no router beyond the tab state** - no `/feed` URL, just React state. Refresh kills `activeTab` back to Feed (state resets); `activeClubId` survives (localStorage).
 
-`active_club_id` (on club switch / login / boot fallback). `club_token`/`club_roles` are only written by `LoginPage` (see [localStorage keys](../05-reference/localstorage-keys.md)).
+## The `isSuperRep` gate
+
+```tsx
+const activeRole = roles.find(r => r.club_id === activeClubId)?.role;
+const isSuperRep = activeRole === "super-club-rep";
+```
+
+Only your role **for the club you're currently editing** matters. You might be a super rep for Club A and a mere rep for Club B - the tab shows itself only while editing Club A. The badge/visibility in `Sidebar`, the bottom mobile nav and the render branch all consult this same two lines.
 
 ## Where to next
 
-- **[LoginPage](./login-page.md)** - the gate you pass before reaching any tab.
-- **[Sidebar](./sidebar.md)** - the desktop twin of the mobile top/bottom bars.
+- **[LoginPage](./login-page.md)** - what comes before this screen.
+- **[Sidebar](./sidebar.md)** - the desktop nav twin.
+- The four tabs themselves, one page each.

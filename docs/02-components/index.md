@@ -1,44 +1,49 @@
 ---
 title: "Components"
-description: "Every component in the app, what it renders, what state it owns, which API calls it makes - line by line."
+description: "The eight files that make the UI - what each one does, in reading order, and the one habit they all share."
 ---
 
 # Components
 
-> **In one line:** one page (`page.tsx`) that switches between four tab components - and every one of them is a small, self-contained CRUD panel over the club-admin API.
+> **In one line:** this app has exactly one screen, and eight small files that divide it among themselves.
 
-| Page | Component | Talks to |
+Reading order for a first tour:
+
+| Page | File | Its one job |
 |---|---|---|
-| [The page & its tabs](./page.md) | `page.tsx` | `getClubToken` (localStorage read) |
-| [LoginPage](./login-page.md) | `LoginPage` | `POST /api/login` |
-| [Sidebar](./sidebar.md) | `Sidebar` | - (props only) |
-| [ThemeSwitcher](./theme-switcher.md) | `ThemeSwitcher` | re-exported AmazeUI |
-| [FeedManager](./feed-manager.md) | `FeedManager` | feed list/create/delete, `/api/events` |
-| [LandingPageBuilder](./landing-page-builder.md) | `LandingPageBuilder` | landing-page read/upsert |
-| [ClubDetailsEditor](./club-details-editor.md) | `ClubDetailsEditor` | details read/update |
-| [RepManager](./rep-manager.md) | `RepManager` | reps list/add/remove (super reps) |
+| [The page & its tabs](./page.md) | `app/page.tsx` | the frame: login gate, club switcher, tab switching |
+| [LoginPage](./login-page.md) | `components/LoginPage.tsx` | prove VTOP identity, get a club token |
+| [Sidebar](./sidebar.md) | `components/Sidebar.tsx` | the left rail on desktop |
+| [ThemeSwitcher](./theme-switcher.md) | `components/ThemeSwitcher.tsx` | a 5-line shim |
+| [FeedManager](./feed-manager.md) | `components/FeedManager.tsx` | the feed: compose, list, delete, link events |
+| [LandingPageBuilder](./landing-page-builder.md) | `components/LandingPageBuilder.tsx` | the showcase page editor |
+| [ClubDetailsEditor](./club-details-editor.md) | `components/ClubDetailsEditor.tsx` | the public card editor |
+| [RepManager](./rep-manager.md) | `components/RepManager.tsx` | super-rep-only roster editor |
 
-## The common skeleton every CRUD tab shares
+## The shared skeleton you'll see in four of them
+
+`FeedManager`, `LandingPageBuilder`, `ClubDetailsEditor`, `RepManager` all do data fetching, so they all rhyme:
 
 ```tsx
 export default function XManager({ clubId }: { clubId: string }) {
-  const [items, setItems] = useState(…);       // server state, mirrored locally
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ type: "", text: "" });
+  const [loading, setLoading] = useState(true);   // "are we fetching?"
+  const [items, setItems] = useState([]);          // "what the server last said"
+  const [message, setMessage] = useState({ type: "", text: "" });  // "temporary banner"
 
-  useEffect(() => {                            // load on mount & club switch
+  useEffect(() => {                                // "as soon as we appear, fetch"
     const controller = new AbortController();
-    fetchData(controller.signal).finally(…);
-    return () => controller.abort();
-  }, [fetchData]);                             // useCallback pins the fn
+    fetchData(controller.signal).finally(/* … */);
+    return () => controller.abort();               // "if we're leaving, stop caring"
+  }, [fetchData]);
 ```
 
-You'll see this exact shape in `FeedManager`, `LandingPageBuilder`, `ClubDetailsEditor` and `RepManager`, with two variations worth memorizing now:
+Once you know this skeleton, each of those pages reads as variations on the same tune: different fields, different endpoints, different rendering. The variations themselves are the interesting part - and they're documented one page per component.
 
-1. **Keying by `clubId`** - the parent (`page.tsx`) renders tabs with `key={clubId}`, so all state resets when the club changes.
-2. **Optimistic-ish UX** - components either patch local state from the response or re-fetch after a mutation (`fetchPosts()`), never trust unverified optimistic writes.
+## Two habits the whole UI shares
+
+- **`key={clubId}` on the tab wrapper in `page.tsx`** - switch clubs, and every tab component is destroyed and recreated clean.
+- **Failure = empty screen, not broken screen** - failed loads fall back to `[]` and a quiet `console.error`. The UI never shows a crash wall.
 
 ## Where to next
 
-- **[The page & its tabs](./page.md)** to see how the four slots are filled.
+- **[The page & its tabs](./page.md)**

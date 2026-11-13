@@ -1,15 +1,37 @@
 ---
 title: "Architecture"
-description: "How Club Hub is put together: static export, react-native-web, amazeui, theming - and why every choice follows from being an AmazeCC companion."
+description: "How the four questions every beginner has - what runs where, what talks to what - answered for this exact app."
 ---
 
 # Architecture
 
-> **In one line:** a one-page static React app written in React Native primitives, themed like AmazeCC, deployed to GitHub Pages, and entirely dependent on the AmazeCC API at runtime.
+> **In one line:** a static file on GitHub Pages, a browser-side React app inside it, and a remote API that does all the real thinking - that's the whole architecture.
 
-| Page | Read it when you… |
+These pages follow that sentence from outside in:
+
+| Page | The question it answers |
 |---|---|
-| [The static export](./static-export.md) | …need to know why there is no server, how `out/` becomes a website, or what `NEXT_PUBLIC_*` baking means for you |
-| [react-native-web & amazeui](./react-native-web.md) | …wonder why the code has `View`/`Text` instead of `<div>`/`<span>`, or how to style things |
-| [Layout & theming](./layout-and-theming.md) | …touch `layout.tsx`, fonts, or want to understand the `midnight` default theme |
-| [The AmazeCC context](./amazecc-context.md) | …need the ecosystem map: which repo owns what, and which API endpoints this app consumes |
+| [The static export](./static-export.md) | what "static" means here, and why there's no server |
+| [react-native-web & amazeui](./react-native-web.md) | what those imports mean, and why the code doesn't say `<div>` |
+| [Layout & theming](./layout-and-theming.md) | what `layout.tsx`, fonts and themes do |
+| [The AmazeCC context](./amazecc-context.md) | how Club Hub connects to everything else in the family |
+
+**The diagram, as a promise:**
+
+```
+        your browser
+   ┌─────────────────────┐
+   │  Club Hub (this app) │
+   │  static files only   │
+   └─────────┬───────────┘
+             │ fetch/JSON over HTTPS
+             ▼
+   https://api.amazecc.com   ← AmazeCC-API (scraping, auth, DB)
+             │
+             ▼
+        Postgres + VTOP
+```
+
+## Where to next
+
+- **[The static export](./static-export.md)**

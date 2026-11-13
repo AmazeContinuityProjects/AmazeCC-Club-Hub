@@ -1,67 +1,60 @@
 ---
 title: "Known issues"
-description: "The honest debt list - what doesn't work, what's fragile, and what's merely embarrassing."
+description: "The honest list - every wart, why it is there, and what to do with it - so nobody 'fixes' the wrong thing."
 ---
 
 # Known issues
 
-> **In one line:** nothing here is undiscovered - it's all deliberate-or-deferred, and documented so nobody "fixes" the wrong thing first.
+> **In one line:** this page is the not-advertised changelog - what is broken, what is deferred, and what nobody dares touch yet.
 
+<a id="images-are-object-urls"></a>
 
-## Images in posts are object URLs
+## The image upload is fake
 
-`FeedManager.handleImageSelect` does `URL.createObjectURL(file)` and stores the resulting `blob:…` string via `image_urls: [url]` in the feed create body. After any reload (or from any other browser), that URL is meaningless. The API stores the string without complaint.
+`FeedManager` picks a file, makes a blob URL (`URL.createObjectURL(file)`), and POSTs `image_urls: [blob:…]` to the API. The API stores the string; nobody — not even you after a reload — can dereference it.
 
-**Impact:** images in club posts are placeholders only; nothing renders them cross-session.
-**Fix sketch:** upload via a B2/S3 endpoint (AmazeCC-API already has one) and store the public URL; or drop the image feature until then.
+**Fix sketch:** upload the file to object storage, send the public URL, or drop images until there's a real upload endpoint.
 
-## The committed `.env` bakes localhost into prod builds
+## Prod builds call localhost
 
-`.env` in git contains `NEXT_PUBLIC_API_URL=http://localhost:3000`; Pages CI does not override it; `next build` inlines it. Production sites built from this tree call localhost from each visitor's machine.
+The committed `.env` says `NEXT_PUBLIC_API_URL=http://localhost:3000`, and CI doesn't override it. GitHub Pages serves the built bundle → every deployed visitor's browser calls *their own* local machine.
 
-**Fix:** see [deployment](../04-operations/deployment.md) — set `NEXT_PUBLIC_API_URL=https://api.amazecc.com` in `nextjs.yml` or delete `.env`.
+**Fix sketch:** `env: { NEXT_PUBLIC_API_URL: https://api.amazecc.com }` on the Build step in `nextjs.yml`, or delete `.env` (the code's fallback is already production). See [Env vars](../04-operations/env-vars.md).
 
-## Club tokens have no refresh
+## Tokens die on day 7 and nothing notices
 
-The API issues 7-day club tokens and there is no refresh endpoint. When the token dies, every club-admin call 401s; the UI silently degrades to empty states and the user may think the app is broken.
+The club token expires after 7 days. Every API call starts returning 401. This app doesn't redirect to login or show a banner; each tab silently shows its empty state. Users assume the app is broken.
 
-**Fix sketch:** on a shared 401 detector in `apiFetch`, clear localStorage and hard-redirect to `/` (one `window.location.href = "/"`); or add a `/api/club-admin/renew` endpoint.
+**Fix sketch:** a shared 401 detector in `apiFetch` that clears storage and reloads — three lines of code, outsized user delight.
 
-## `LoginPage` accepts dev-convenience env credentials
+## `ThemeSwitcher.tsx` is dead
 
-`NEXT_PUBLIC_VTOP_USERNAME`/`NEXT_PUBLIC_VTOP_PASSWORD` pre-fill the login form if set. Harmless by design (public env), but they should never ship in a shared build. They aren't committed anywhere in the repo — keep it that way.
+Nothing imports it; both call sites use `@/lib/ui`. Safe to delete.
 
-## `ThemeSwitcher.tsx` is a dead shim
+## Package name is `temp-club-hub`
 
-`src/components/ThemeSwitcher.tsx` re-exports `@amazecontinuityprojects/amazeui`'s component "for backwards compatibility"; nothing imports it. Delete whenever convenient (check with `rg "components/ThemeSwitcher"`).
+Placeholder from day one, never updated. Cosmetic but embarrassing; change when you touch `package.json` next.
 
-## `temp-club-hub` is the package name
+## README promises more than exists
 
-`package.json` still says `name: "temp-club-hub"`. Cosmetic, but the npm identity is placeholder; align with the repo name when touching `package.json` next.
+Any unlisted feature in the README is aspirational. The shipped set is exactly the four tabs.
 
-## The README's feature list is aspirational
+## `promote_count` tricked the type system
 
-README says "??? Club discovery…" — the app has no discovery, no events *creation* (link-only), no announcements/broadcasts, no analytics. Only what's documented in [Components](../02-components/index.md) exists.
+pg `int8` → string. Treating it as `number` works for display but any arithmetic silently yields NaN. Cast or don't math it.
 
-## Promote flow is read-only here
+## `key={clubId}` destroys drafts on club switch
 
-The API serves `promote_count`/`has_promoted`; this app shows neither — the tally is a server-side concern for other surfaces.
+Switching clubs wipes every in-progress edit. Intended (no cross-club bleed), unsurprising once you know it, undocumented before this page.
 
-## `key={clubId}` remount UX
+## `alert()` instead of banners in FeedManager
 
-Switching clubs discards any in-progress draft on the landing page (form state, compose state). Intentional (no cross-club bleed), but surprising; a "you have unsaved changes" guard would be kind to users.
+Everywhere else uses inline `<Alert>`; FeedManager still uses OS dialogs. Cosmetic, jarring, harmless.
 
-## `alert()` as an error surface
+## What belongs in the next PR
 
-`FeedManager` still uses OS dialogs for failures while every other tab uses inline banners. Cosmetic inconsistency.
-
-## What is *not* broken
-
-- Deduplication logic (roles, posts) — intentional, correct.
-- `react-native` in `package.json` deps — required for the web alias; not a bug.
-- `public/manifest.json` — valid PWA manifest.
-- CI's malware signature scan — load-bearing; do not remove.
-
-## Reporting more
-
-File an issue in `AmazeContinuityProjects/AmazeCC-Club-Hub` with a repro — the API contract lives in the AmazeCC-API handbook; this one is the truth of the client.
+- `.env` fix (see env-vars) or CI override — **blocker for real prod use**.
+- Shared 401 redirect.
+- Real image upload (or punt the feature).
+- `package.json` name + README refresh.
+- Delete `ThemeSwitcher.tsx`.

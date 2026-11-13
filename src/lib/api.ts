@@ -1,5 +1,5 @@
 // AmazeCC API on Cloudflare Workers (Hono) - club-admin + remote VTOP.
-import { getAccessTokenSync, signOutOidc } from "./oauth2";
+import { getAccessTokenSync, handleUnauthorized } from "./oauth2";
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://hono.amazecc.com";
 
@@ -13,17 +13,9 @@ export function apiUrl(path: string) {
 
 export function getClubToken() {
   if (typeof window === "undefined") return null;
-  // OIDC access token (authorization_code + PKCE); refresh happens in oauth2.ts
-  // (ensureFreshAccessToken, called on app mount).
+  // OIDC access token (authorization_code + PKCE). Renewal is a silent
+  // prompt=none re-authorization (see oauth2.ts: handleUnauthorized).
   return getAccessTokenSync();
-}
-
-export async function signOut() {
-  // Revoke the OAuth tokens at the IdP, then drop local state. The IdP session
-  // stays alive so the next sign-in is a silent SSO hop.
-  await signOutOidc();
-  localStorage.removeItem("club_roles");
-  localStorage.removeItem("active_club_id");
 }
 
 export function apiFetch(path: string, init: RequestInit = {}) {
@@ -44,6 +36,10 @@ export function apiFetch(path: string, init: RequestInit = {}) {
   return fetch(apiUrl(path), {
     ...init,
     headers,
+  }).then((res) => {
+    // Access token expired mid-session: re-authorize silently.
+    if (res.status === 401) handleUnauthorized();
+    return res;
   });
 }
 

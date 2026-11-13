@@ -7,7 +7,17 @@ description: "The ecosystem family tree - what each repo is for, and the exact t
 
 > **In one line:** Club Hub is a small remote control for one slice of one API - know what the rest of the family does, or you'll wonder why changes here don't stick.
 
-## The family tree in five seconds
+```mermaid
+flowchart LR
+  STUDENT["student / public"] -->|sessions, attendance…| AMZ[AmazeCC app]
+  CLUB["club admin"] -->|"manage club"| CH[Club Hub — this repo]
+  STAFF["staff / ops"] --> DASH[AmazeCC Dashboard]
+  AMZ --> API[AmazeCC-API]
+  CH --> API
+  DASH --> API
+  API --> DB[(Postgres)]
+  API --> VTOP[VIT VTOP]
+```
 
 | Repo | What it is | One sentence |
 |---|---|---|

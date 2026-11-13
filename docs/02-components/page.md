@@ -9,7 +9,24 @@ description: "app/page.tsx walked through like a guided tour - what every line i
 
 > **In one line:** the only screen decides who you are, which club you're editing, and which tab you see - everything else lives inside four tab components.
 
-## The four things the screen shows
+## The big picture as a graph
+
+```mermaid
+flowchart TB
+  L[RootLayout\nthemes + fonts] --> P[Home]
+  P -->|"if !token"| LP[LoginPage]
+  P -->|"token set"| SHELL[Shell grid]
+  SHELL --> SB[Sidebar]
+  SHELL --> MAIN[Main column + sticky header]
+  MAIN -->|"activeTab=feed"| FM[FeedManager]
+  MAIN -->|"activeTab=details"| CDE[ClubDetailsEditor]
+  MAIN -->|"activeTab=landing"| LPB[LandingPageBuilder]
+  MAIN -->|"activeTab=reps\nisSuperRep"| RM[RepManager]
+  SHELL -->|"roles.length > 1"| PICKER[Club picker\nOptionPicker]
+  SHELL -->|logout| PURGE[(localStorage\n3 keys wiped)]
+```
+
+> There is no router beyond `activeTab`; switching tabs unmounts/remounts the branch via `key={`${tab}-${activeClubId}`}`.
 
 ```
 ┌──────────────┬───────────────────────────────────────┐

@@ -24,7 +24,22 @@ Your job as an engineer on this codebase:
 
 `GET /api/events` returns a bare JSON array. Code detects it with `res.ok` + `Array.isArray(…)`. Nothing else. (If you ever add a new raw route, document it here and in `03-api-integration/`.)
 
+## Which dialect is this endpoint?
+
+```mermaid
+flowchart TD
+  R[response] --> Q{"'success' key?"}
+  Q -->|"yes"| W[Dialect 1 — wrapped]
+  Q -->|"no"| RAW[Dialect 2 — raw body]
+  W --> W2{"data.success?"}
+  W2 -->|true| OK[use payload]
+  W2 -->|false| ERR[show data.error]
+  RAW --> ROK["check res.ok + Array.isArray"]
+```
+
 ## The swallow list
+
+
 
 These are deliberate, not lazy:
 

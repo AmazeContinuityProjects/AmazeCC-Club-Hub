@@ -105,14 +105,24 @@ If the API said no (`success: false`), the app shows the API's `error` text in a
 - **All the interesting logic lives in one place** (the API), not split across browser code that you can't secure.
 - **The cost:** every privileged decision happens at the API; this app is a glorified remote control. That's the right trade for an app this size.
 
-## One diagram to burn in
+## The whole trip in one diagram
 
-```
-   YOU            THIS APP                         THE API
-  ──────           ────────                        ───────
-  click Post ──►   apiFetch('/api/club-admin/feed') ──► checks token, checks club, writes row
-                 ◄──────── returned JSON { success } ──┘
-  see new card ◄── state update re-renders timeline
+```mermaid
+sequenceDiagram
+  autonumber
+  participant You
+  participant Feed as FeedManager.tsx
+  participant API as AmazeCC-API
+  participant DB as Postgres
+  You->>Feed: click "Post"
+  Feed->>API: "POST /api/club-admin/feed (Bearer clubToken, X-Club-Id)"
+  API->>API: verify HMAC signature
+  API->>API: is club in clubs[]?
+  API->>DB: INSERT INTO club_feed
+  DB-->>API: row
+  API-->>Feed: "{ success: true, post }"
+  Feed->>Feed: setPosts(…) — React re-renders the timeline
+  Feed-->>You: new card visible
 ```
 
 ## Where to next

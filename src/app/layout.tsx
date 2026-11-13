@@ -1,21 +1,40 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono, DM_Sans } from "next/font/google";
 import { ThemeProvider } from "@amazecontinuityprojects/amazeui";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const geist = Geist({ weight: "variable", subsets: ["latin"], display: "swap", variable: "--font-geist" });
+const geistMono = Geist_Mono({
+  weight: "variable",
   subsets: ["latin"],
+  display: "swap",
+  variable: "--font-geist-mono",
+});
+const dmSans = DM_Sans({
+  weight: "variable",
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-dm-sans",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#020617" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+  ],
+  width: "device-width",
+  initialScale: 0.85,
+  maximumScale: 5.0,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
-  title: "AmazeCC Club Hub",
-  description: "Manage your club's presence on AmazeCC",
+  applicationName: "AmazeCC Club Hub",
+  title: {
+    default: "AmazeCC Club Hub",
+    template: "%s - Club Hub",
+  },
+  description: "Manage your club's presence on AmazeCC — feed, landing page, representatives.",
   manifest: "/manifest.json",
 };
 
@@ -28,10 +47,16 @@ export default function RootLayout({
     <html
       suppressHydrationWarning
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geist.variable} ${geistMono.variable} ${dmSans.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <ThemeProvider attribute="class" defaultTheme="midnight" enableSystem themes={["light", "dark", "midnight"]}>
+      <body className="min-h-full flex flex-col font-sans">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+          disableTransitionOnChange
+          value={{ light: "light", dark: "dark" }}
+        >
           {children}
         </ThemeProvider>
       </body>

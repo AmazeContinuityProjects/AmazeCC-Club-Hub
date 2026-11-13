@@ -1,90 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { View, Text, Image, Card, CardContent, Input, Label, Button, LoadingSpinner, Alert } from "@/lib/ui";
-import { AUTH_BASE, apiFetch } from "@/lib/api";
-import { ShieldCheck, Link2, ArrowRight } from "lucide-react";
+import { View, Text, Image, Card, CardContent, Button } from "@/lib/ui";
+import { AUTH_BASE } from "@/lib/api";
+import { signInInteractive } from "@/lib/oauth2";
+import { ShieldCheck, Link2, ArrowRight, RefreshCw } from "lucide-react";
 
-type LoginState = "form" | "needs-vtop-link";
-
+/**
+ * Sign-in entry for Club Hub. Auth is a full redirect to Amaze ID
+ * (authorization code + PKCE) - this component renders only the entry card
+ * and the "link your VTOP first" gate shown when the signed-in Amaze ID is
+ * not a club representative yet.
+ */
 export default function LoginPage({
-  onLogin,
+  vtopLinkRequired = false,
 }: {
-  onLogin: (token: string, roles: { club_id: string; role: string }[]) => void;
+  vtopLinkRequired?: boolean;
 }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [state, setState] = useState<LoginState>("form");
-
-  const finishWithToken = async (token: string) => {
-    // Resolve the caller's clubs from the shared store (source of truth).
-    const res = await apiFetch("/api/club-admin/my-clubs", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.status === 403) {
-      const body = await res.json().catch(() => null);
-      if (body?.error === "vtop_link_required") {
-        setState("needs-vtop-link");
-        localStorage.removeItem("club_token");
-        return;
-      }
-      setError(body?.message || "Your account is not a club representative yet.");
-      return;
-    }
-    if (!res.ok) {
-      setError("Could not verify your club access. Try again.");
-      return;
-    }
-    const { clubs } = await res.json();
-    localStorage.setItem("club_token", token);
-    localStorage.setItem("club_roles", JSON.stringify(clubs));
-    onLogin(token, clubs);
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(`${AUTH_BASE}/api/auth/sign-in/email`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok || !body?.token) {
-        setError(body?.message || body?.code || "Invalid email or password.");
-        return;
-      }
-      await finishWithToken(body.token);
-    } catch {
-      setError("Could not reach Amaze ID. Check your connection and try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <View className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
-      {/* Ambient grid + glow */}
-      <View className="absolute inset-0 bg-grid [mask-image:radial-gradient(ellipse_80%_80%_at_50%_-10%,#000_60%,transparent_100%)] pointer-events-none opacity-100" />
-      <View className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-      <View className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
-
-      <Card className="max-w-sm w-full relative overflow-hidden" variant="glass">
-        {loading && (
-          <View className="absolute inset-0 bg-background/80 backdrop-blur-md flex flex-col items-center justify-center z-50 gap-4 rounded-2xl">
-            <LoadingSpinner size="lg" />
-            <View className="text-center">
-              <Text className="text-xs font-black uppercase tracking-widest text-foreground">Signing in to Amaze ID</Text>
-              <Text className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider animate-pulse mt-1">Verifying your identity…</Text>
-            </View>
-          </View>
-        )}
-
-        {state === "needs-vtop-link" ? (
+  if (vtopLinkRequired) {
+    return (
+      <View className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+        <View className="absolute inset-0 bg-grid [mask-image:radial-gradient(ellipse_80%_80%_at_50%_-10%,#000_60%,transparent_100%)] pointer-events-none" />
+        <Card className="max-w-sm w-full relative overflow-hidden" variant="glass">
           <CardContent className="p-8 space-y-6 text-center">
             <View className="flex justify-center">
               <View className="relative">
@@ -97,7 +33,8 @@ export default function LoginPage({
             <View className="space-y-2">
               <Text className="text-xl font-extrabold text-foreground tracking-tight">Link your VTOP profile</Text>
               <Text className="text-sm text-muted-foreground leading-relaxed">
-                Club access is granted to VTOP-linked Amaze IDs only. Connect your VTOP account to your Amaze ID once — after that, club admin works instantly and revokes the moment you unlink.
+                Club access is granted to VTOP-linked Amaze IDs only. Connect your VTOP account to your Amaze ID once -
+                after that, club admin works instantly and revokes the moment you unlink.
               </Text>
             </View>
             <View className="space-y-2">
@@ -110,77 +47,57 @@ export default function LoginPage({
                   <ArrowRight className="w-4 h-4" />
                 </View>
               </Button>
-              <Button variant="ghost" className="w-full text-xs" onClick={() => setState("form")}>
-                <Text className="text-xs font-semibold text-muted-foreground">Back to sign-in</Text>
-              </Button>
-            </View>
-          </CardContent>
-        ) : (
-          <CardContent className="p-8 space-y-8">
-            {/* Logo + Title */}
-            <View className="text-center space-y-4">
-              <View className="flex justify-center">
-                <View className="relative">
-                  <View className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl" />
-                  <Image src="/logo.png" alt="AmazeCC Logo" className="relative h-16 w-16 rounded-2xl object-contain shadow-lg" />
-                </View>
-              </View>
-              <View>
-                <Text className="text-2xl font-extrabold text-foreground tracking-tight">Club Hub</Text>
-                <Text className="mt-1 text-sm text-muted-foreground">Sign in with your Amaze ID</Text>
-              </View>
-            </View>
-
-            {error && (
-              <Alert variant="error">
-                <Text className="text-sm font-medium">{error}</Text>
-              </Alert>
-            )}
-
-            {/* Form */}
-            <form onSubmit={handleLogin} className="space-y-5">
-              <View className="space-y-4">
-                <View className="space-y-1.5">
-                  <Label className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Email</Label>
-                  <Input
-                    required
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-                    placeholder="you@vit.ac.in"
-                  />
-                </View>
-                <View className="space-y-1.5">
-                  <Label className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Password</Label>
-                  <Input
-                    required
-                    type="password"
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                  />
-                </View>
-              </View>
-
-              <Button type="submit" disabled={loading} className="w-full">
+              <Button variant="secondary" className="w-full text-xs" onClick={() => window.location.reload()}>
                 <View className="flex-row items-center gap-2">
-                  <ShieldCheck className="w-4 h-4" />
-                  <Text className="font-semibold">Continue with Amaze ID</Text>
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <Text className="text-xs font-semibold">I&apos;ve linked it - check again</Text>
                 </View>
               </Button>
-            </form>
-
-            <Text className="text-[11px] text-muted-foreground/70 text-center leading-relaxed">
-              No Amaze ID?{" "}
-              <a href={`${AUTH_BASE}/sign-up`} className="text-primary font-semibold hover:underline" target="_blank" rel="noreferrer">
-                Create one
-              </a>{" "}
-              — same account for every AmazeCC app.
-            </Text>
+            </View>
           </CardContent>
-        )}
+        </Card>
+      </View>
+    );
+  }
+
+  return (
+    <View className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+      {/* Ambient grid + glow */}
+      <View className="absolute inset-0 bg-grid [mask-image:radial-gradient(ellipse_80%_80%_at_50%_-10%,#000_60%,transparent_100%)] pointer-events-none opacity-100" />
+      <View className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+      <View className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+
+      <Card className="max-w-sm w-full relative overflow-hidden" variant="glass">
+        <CardContent className="p-8 space-y-8">
+          {/* Logo + Title */}
+          <View className="text-center space-y-4">
+            <View className="flex justify-center">
+              <View className="relative">
+                <View className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl" />
+                <Image src="/logo.png" alt="AmazeCC Logo" className="relative h-16 w-16 rounded-2xl object-contain shadow-lg" />
+              </View>
+            </View>
+            <View>
+              <Text className="text-2xl font-extrabold text-foreground tracking-tight">Club Hub</Text>
+              <Text className="mt-1 text-sm text-muted-foreground">Sign in with your Amaze ID to manage your club</Text>
+            </View>
+          </View>
+
+          <Button onClick={() => signInInteractive()} className="w-full">
+            <View className="flex-row items-center gap-2">
+              <ShieldCheck className="w-4 h-4" />
+              <Text className="font-semibold">Continue with Amaze ID</Text>
+            </View>
+          </Button>
+
+          <Text className="text-[11px] text-muted-foreground/70 text-center leading-relaxed">
+            One Amaze ID for every AmazeCC app.{" "}
+            <a href={`${AUTH_BASE}/sign-up`} className="text-primary font-semibold hover:underline" target="_blank" rel="noreferrer">
+              Create one
+            </a>{" "}
+            - club access needs a VTOP-linked Amaze ID.
+          </Text>
+        </CardContent>
       </Card>
     </View>
   );

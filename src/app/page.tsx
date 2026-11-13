@@ -10,8 +10,8 @@ import LandingPageBuilder from "@/components/LandingPageBuilder";
 import Sidebar from "@/components/Sidebar";
 import ClubDetailsEditor from "@/components/ClubDetailsEditor";
 import RepManager from "@/components/RepManager";
-import { getClubToken, signOut, apiFetch } from "@/lib/api";
-import { ensureFreshAccessToken, trySilentSignIn, clearOidcStorage } from "@/lib/oauth2";
+import { getClubToken, apiFetch } from "@/lib/api";
+import { ensureFreshAccessToken, trySilentSignIn, clearOidcStorage, signOutApp, signOutDevice } from "@/lib/oauth2";
 import { LogOut, MessageSquare, Info, LayoutTemplate, Users } from "lucide-react";
 
 const TAB_LABELS: Record<string, string> = {
@@ -47,6 +47,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<string>("feed");
   const [hydrating, setHydrating] = useState(true);
   const [linkRequired, setLinkRequired] = useState(false);
+  const [signOutMenuOpen, setSignOutMenuOpen] = useState(false);
 
   // Hydrate from the shared store: Amaze ID tokens are the only source of truth.
   useEffect(() => {
@@ -106,14 +107,26 @@ export default function Home() {
     setActiveClubId(newClubId);
   };
 
-  const handleLogout = () => {
-    signOut().finally(() => {
+  const handleLogout = () => setSignOutMenuOpen(true);
+
+  const handleAppSignOut = () => {
+    // Revokes this app's tokens at the IdP (verified). IdP session stays.
+    signOutApp().finally(() => {
       localStorage.removeItem("active_club_id");
+      localStorage.removeItem("club_roles");
+      clearOidcStorage();
+      setSignOutMenuOpen(false);
       setToken(null);
       setRoles([]);
       setActiveClubId(null);
       setActiveTab("feed");
     });
+  };
+
+  const handleDeviceSignOut = () => {
+    // Revokes this app's tokens, then ends the IdP session - every AmazeCC
+    // app on this device signs out (via the IdP's RP-Initiated Logout).
+    signOutDevice();
   };
 
   if (hydrating) {
@@ -230,6 +243,50 @@ export default function Home() {
           </View>
         )}
       </View>
+
+      {/* Sign-out choice: this app vs the whole device */}
+      {signOutMenuOpen && (
+        <View className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Cancel"
+            onClick={() => setSignOutMenuOpen(false)}
+            className="absolute inset-0 bg-background/70 backdrop-blur-sm cursor-default"
+          />
+          <View className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl p-6 space-y-4">
+            <View className="space-y-1">
+              <Text className="text-xl font-extrabold text-foreground tracking-tight">Sign out</Text>
+              <Text className="text-sm text-muted-foreground">Choose how you want to sign out.</Text>
+            </View>
+
+            <button
+              type="button"
+              onClick={handleAppSignOut}
+              className="w-full text-left rounded-xl border border-border bg-muted/40 hover:bg-muted/70 transition-colors p-4 space-y-1 cursor-pointer"
+            >
+              <Text className="block text-sm font-bold text-foreground">Sign out of Club Hub</Text>
+              <Text className="block text-xs text-muted-foreground leading-relaxed">Revokes this app&apos;s tokens at Amaze ID. Your Amaze ID stays signed in for other AmazeCC apps.</Text>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDeviceSignOut}
+              className="w-full text-left rounded-xl border border-danger/30 bg-danger/5 hover:bg-danger/10 transition-colors p-4 space-y-1 cursor-pointer"
+            >
+              <Text className="block text-sm font-bold text-danger">Sign out of Amaze ID on this device</Text>
+              <Text className="block text-xs text-muted-foreground leading-relaxed">Ends your Amaze ID session at auth.amazecc.com. Every AmazeCC app on this device signs out immediately - revokes all session tokens.</Text>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSignOutMenuOpen(false)}
+              className="w-full h-10 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+          </View>
+        </View>
+      )}
     </View>
   );
 }

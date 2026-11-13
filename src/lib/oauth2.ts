@@ -18,7 +18,10 @@ const AUTH_BASE = process.env.NEXT_PUBLIC_AUTH_URL ?? "https://auth.amazecc.com"
 
 export const OIDC = {
   clientId: "amazecc-club-hub",
-  redirectUri: () => `${window.location.origin}/auth/callback/`,
+  // NOTE: production is GitHub Pages with clean URLs - the exported page is
+  // served at /auth/callback, while the trailing-slash variant 404s (verified
+  // 2026-11-14). Keep this exactly matching the registered redirect_uri.
+  redirectUri: () => `${window.location.origin}/auth/callback`,
   scope: "openid profile email offline_access",
   authorizeEndpoint: `${AUTH_BASE}/api/auth/oauth2/authorize`,
   tokenEndpoint: `${AUTH_BASE}/api/auth/oauth2/token`,

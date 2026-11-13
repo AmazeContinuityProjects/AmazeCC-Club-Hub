@@ -1,4 +1,5 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://api.amazecc.com";
+// AmazeCC API on Cloudflare Workers (Hono). Serves /api/login (VTOP) and /api/club-admin/*.
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://hono.amazecc.com";
 
 export function apiUrl(path: string) {
   return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;

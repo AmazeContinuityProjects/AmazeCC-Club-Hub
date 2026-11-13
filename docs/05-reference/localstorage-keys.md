@@ -1,34 +1,42 @@
 ---
 title: "LocalStorage keys"
-description: "The three localStorage keys this app owns - exact readers, writers and consequences of clearing."
+description: "The complete storage contract - three keys, exact readers/writers, consequences of deleting."
 ---
 
 # LocalStorage keys
 
-> **In one line:** three keys, one table each owner - clear them and the app forgets you completely.
+> **In one line:** this site owns exactly three entries in your browser's localStorage - break them by name and the app resets to a fresh logged-out state.
 
-| Key | Written by | Read by | Contents | Clearing it… |
+| Key | Type | Written by | Read by | What happens if you delete it |
 |---|---|---|---|---|
-| `club_token` | `LoginPage` (on login) | `apiFetch` (every call) | the club JWT (HMAC, `typ: 'club'`, 7-day exp) | every subsequent API call is unauthenticated → 401s → empty tabs; only fix is logging in again |
-| `club_roles` | `LoginPage` (deduped) | boot effect (`page.tsx`) | JSON array of `{ club_id, role }` - used for the club picker and super-rep gating | boot falls back to first club; reps tab hides itself |
-| `active_club_id` | `page.tsx` (boot fallback, login, switch) | `apiFetch` + club picker | the club being administered | defaults to first represented club on next boot |
+| `club_token` | string (JWT, 7-day expiry) | `LoginPage` after `POST /api/login` | every `apiFetch` call, as `Authorization: Bearer …` | any API call is unauthenticated → 401s → empty tabs |
+| `club_roles` | JSON string array of `{club_id, role}` | `LoginPage` | the boot effect in `page.tsx` | picker empty, Reps tab hidden, no tab switch |
+| `active_club_id` | string (club id like `gdgom`) | `page.tsx` boot effect / login / switcher | `apiFetch` (as `X-Club-Id`) + club picker | defaults to your first-represented club on next boot |
 
-## On logout
+## Who else writes into localStorage
 
-`handleLogout` deletes all three. Nothing else is cleared (the API is stateless; the keys are all client-side residue).
+The amazeui theme provider stores its own key for light/dark/midnight — not part of this contract; don't touch it.
 
-## Keys this app deliberately does not use
+## Clearing everything for a fresh start
 
-- `vtop_*`, `aura_*`, `amazecc_*` - belong to sibling apps; don't touch.
-- Theme preference - managed by `@amazecontinuityprojects/amazeui`'s `ThemeProvider` (its own storage); not part of this contract.
+In devtools console:
 
-## Rules
+```js
+localStorage.removeItem("club_token");
+localStorage.removeItem("club_roles");
+localStorage.removeItem("active_club_id");
+// reload — you'll be at the login screen
+```
 
-1. **Never invent new keys without adding them to this page.** The handbook is the contract.
-2. **Never store secrets beyond `club_token`.** It already buys exactly what the API grants - more keys = more blast radius.
-3. **Treat `club_roles` as advisory.** The API enforces privilege; the local copy is a UI convenience that can lie.
+Or open an incognito window — simplest possible "log in as someone else".
+
+## The three rules of this contract
+
+1. **Never add a fourth key without documenting it here.** Small app, one contract.
+2. **Never store anything beyond the badge and the picker state.** More stuff = more attack surface for XSS.
+3. **The token IS the session.** Treat it exactly like a session cookie, just clumsier.
 
 ## Where to next
 
-- **[Auth flow](../03-api-integration/auth-flow.md)**
 - **[Data types](./data-types.md)**
+- **[Known issues](./known-issues.md)**

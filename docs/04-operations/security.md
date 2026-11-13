@@ -1,50 +1,46 @@
 ---
 title: "Security"
-description: "What this static app can and cannot protect - the token model, the .env rule, and the audit trail."
+description: "What this static website can and cannot protect, where the badge lives, and what attacking looks like - in plain words."
 ---
 
 # Security
 
-> **In one line:** all authority lives server-side at the API; this app holds only a short-lived token in localStorage - and that is exactly as fragile as it sounds.
+> **In one line:** this site holds one valuable thing (the club token in localStorage); whoever holds it acts as a rep until it expires - so everything here is about keeping it unpossessed.
 
-## The threat model, honestly
+## What lives in the browser
 
-| Asset | Where it lives | Steal it and you… |
+| Thing | Where | What an attacker does with it |
 |---|---|---|
-| VTOP password | never stored; only in the login request body (HTTPS) | log in as the user — for 7 days of club-token minting, or forever if you phish them elsewhere |
-| `club_token` | `localStorage` in their browser | act as a club rep until it expires (7 days) — no DB hit needed |
-| `active_club_id` | `localStorage` | nothing — it only selects context |
+| `club_token` | `localStorage` | everything you can do as a rep — for 7 days |
+| `club_roles` | `localStorage` | cosmetic; reveals which clubs you claim |
+| your VTOP password | **nowhere** — only in flight to the API over HTTPS | nothing, unless they phish you |
 
-There is no token refresh, no rotation, no server-side session. **XSS = full club takeover** until expiry. Hence:
+**localStorage has one rule: destroy what's in it with XSS.** A script running in your page's origin can read `localStorage` freely. So there must never be a script injection point in this app.
 
-1. **No `dangerouslySetInnerHTML` anywhere** in this repo (verified — zero hits).
-2. **No markdown rendering yet** despite `react-markdown` being a dependency — when you add it, it's an XSS surface: render with `skipHtml`/`unwrapDisallowed` or sanitize (the club `description`/`hiring_process` are rep-authored markdown, i.e. attacker-controlled if a rep turns rogue).
-3. **All API calls derive from `apiFetch`** — no bespoke fetch with missing headers to accidentally call the API role-granted elsewhere.
+## Why there is no markdown rendered yet
 
-## The .env rule
+`react-markdown` is a dependency but nothing imports it. The two markdown fields on the public card (`description`, `hiring_process`) describe the club, not your browser.
 
-`.env` in this repo contains **zero secrets** and must stay that way: it's public, baked into the client bundle, readable by anyone on devtools. Anything sensitive belongs to CI's environment or nowhere.
+**When someone adds markdown rendering here, that's the injection door.** If you do: sanitize (e.g. `skipHtml` + `unwrapDisallowed`) or treat all markdown as untrusted input forever. Public club data is rep-authored (untrusted) text shown to every visitor.
 
-## What the API re-checks (you cannot bypass it)
+## The three lines of defense
 
-Even if this app shows you a button, the API independently enforces:
+1. **No `dangerouslySetInnerHTML` anywhere.** Find none in the repo (there isn't any). Incident-grade importance if it changes.
+2. **All network through `apiFetch`** → every request carries the token; no bespoke fetch with missing headers. Easier to audit.
+3. **The API re-checks everything.** The UI is convenience. A rogue frontend can only do what a token can do — which is the same blast radius as a stolen token: one club's admin access for 7 days.
 
-- valid, signed club token on every `/api/club-admin/*` call (else 401),
-- club membership in token's `clubs[]` (else 403),
-- super-club-rep for rep management (else 403),
-- rate limits on `/api/login` (5/min/IP) etc.
+## The secrets you never see
 
-**The UI is a convenience layer, not a security boundary.** A modified frontend can only do what the API allows a rep's token - which is the real blast radius.
+Because this is a static site, there is no `DATABASE_URL`, no `ADMIN_SECRET`, no VTOP password, no HMAC key anywhere in this repo. Gitleaks on CI makes sure it stays that way. If you ever find yourself wanting to "just quickly add the API secret to `.env`" so you can call the API directly — you're building the wrong thing; the app calls the API without secrets because the API is the one with the secrets.
 
-## Auditability
+## What you should report immediately
 
-Every privileged action maps to an API-side audit row (admin_audit_logs for admin actions; club actions don't log VTOP-style, but the API's logs exist on its side). If you need forensic evidence, ask the API team - this app logs nothing.
-
-## The repo's own security hygiene (read this once)
-
-This repo's history includes **appended malware in config files** (see [CI](./ci.md)'s signature scan). If you ever see a mysterious change to a build file that you don't understand: treat it as hostile, `git log -p` it, and tell a maintainer before merging anything that touches it.
+- A mystery new file in `public/` or `.github/`.
+- A new `dependency` you didn't ask for.
+- `react-markdown` being imported somewhere.
+- `.env` gaining a key with the word `SECRET`/`TOKEN`/`PASSWORD` in it.
 
 ## Where to next
 
-- **[Known issues](../05-reference/known-issues.md)**
 - **[CI](./ci.md)**
+- **[Known issues](../05-reference/known-issues.md)**

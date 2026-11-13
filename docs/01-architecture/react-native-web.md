@@ -1,71 +1,71 @@
 ---
 title: "react-native-web & amazeui"
-description: "Why the code says View instead of div - react-native-web, the amazeui library, and the @/lib/ui re-export pattern."
+description: "Why this code says View instead of div - the three-layer component stack, explained for someone who has never seen React Native."
 ---
 
 # react-native-web & amazeui
 
-> **In one line:** the whole UI is written against React Native's primitives, compiled to the browser through react-native-web, and themed with the same amazeui design system the AmazeCC app uses.
+> **In one line:** this app is written against React Native's vocabulary; a library translates those pieces into browser HTML+CSS at runtime.
 
-## The three layers
+## The three layers, top to bottom
 
-| Layer | What it is | Where you see it |
-|---|---|---|
-| `react-native` (aliased to `react-native-web`) | the primitive component model: `View`, `Text`, `Pressable`, `Image`, `StyleSheet`, `useWindowDimensions` | `transpilePackages` + webpack alias in `next.config.ts` |
-| `@amazecontinuityprojects/amazeui` | the design system: composed components (`Button`, `Card`, `Timeline`, `Sidebar`, `OptionPicker`, `Fab`…) + theming (`ThemeProvider`, `useTheme`) | `globals.css`, `layout.tsx`, every component |
-| `@/lib/ui.ts` | **this repo's** single import point - re-exports the library + its prop types | every `.tsx` file here |
+### Layer 3 - `@amazecontinuityprojects/amazeui` (the toolkit)
 
-## Why React Native primitives on the web?
+The org's design system: buttons, cards, timelines, sidebars, theme provider, and the design tokens (colors, radii, shadows). This is the vocabulary shared with the actual React Native mobile app (`edu.vit.vitiancc` and `amzcc`). Every interactive element in Club Hub comes from here - `<Button>`, `<Card>`, `<Timeline>`, `<Fab>`, `<OptionPicker>`, `<MobileBottomNav>`.
 
-The AmazeCC app is React Native (iOS/Android). Club Hub exists in the same family, and the org writes one component vocabulary instead of two:
+### Layer 2 - `@/lib/ui.ts` (the import point)
+
+This repo never imports Layer 3 directly. It has **one** file that re-exports every primitive, component and type you may want. The rule is absolute and enforced by habit, not by lint:
 
 ```tsx
-// what you write
-<View className="flex flex-row items-center gap-2">…</View>
-
-// what the browser serves (via react-native-web)
-<div class="flex flex-row items-center gap-2 css-view-175oi2r">…</div>
+import { View, Text, Button } from "@/lib/ui";      // yes
+import { View, Text } from "@amazecontinuityprojects/amazeui";  // never, actually
 ```
 
-Style is className (Tailwind) - react-native-web passes it through to the DOM. The primitives keep layout props (`flexDirection`, etc.) as props, but this codebase overwhelmingly uses className instead, relying on Tailwind for layout.
+Why the indirection? When the org updates the library, one file changes, not fifty. And types ride along in the same import. (See that file - it's a plain list, nothing clever.)
 
-## `@/lib/ui.ts` - the indirection you should respect
+### Layer 1 - `react-native` aliased to `react-native-web`
 
-Every `.tsx` imports from `@/lib/ui`, never from `@amazecontinuityprojects/amazeui` directly. Reasons the codebase does this deliberately:
+`next.config.ts` webpack block makes `'react-native'` resolve to `'react-native-web'` - the library that turns React Native primitives into DOM elements. So `<View>` becomes a `<div>`, with the same props translated. You never import Layer 1 directly either; it's underneath everything else.
 
-1. **One upgrade surface.** When the library renames something, one file changes.
-2. **Types flow in the same import** (`MobileBottomNavItem`, etc.).
-3. **No accidental deep imports** that break when the package's internals move.
+```
+your code ──imports──► @/lib/ui ──re-exports──► amazeui ──depends on──► react-native-web ──► HTML
+```
 
-The re-export list is long but mechanical - `View`, `Text`, `Image`, the full layout/nav/form/overlay/display families, plus every `*Props` type. If you need a component from the library that isn't re-exported, add it there (alphabetized, with its type).
+## Learning the primitives in five minutes
 
-## Tailwind v4 and `globals.css`
+| Primitive | Browser equivalent | Mental model |
+|---|---|---|
+| `<View>` | `<div>` | a box that arranges its children |
+| `<Text>` | `<span>`/`<p>` | any text |
+| `<Pressable>` | `<button>` | tap/click target |
+| `<Image>` | `<img>` | image |
+| `<TextInput>` (via `<Input>`) | `<input>` | editable field |
+
+You already know all five - it's HTML with different labels.
+
+## Styling: Tailwind v4 through amazeui's tokens
+
+`globals.css` opens with:
 
 ```css
 @import "@amazecontinuityprojects/amazeui/tailwind.css";
 ```
 
-Amazeui ships a Tailwind v4 preset: design tokens like `--background`, `--foreground`, `--card`, `--primary`, `--success`, `--danger`, `--muted` as OKLCH CSS variables, plus dark/light/midnight themes. The classes used throughout (`bg-background`, `text-foreground`, `border-border`, `bg-card`, `text-muted-foreground`, `bg-primary`, `text-success`…) resolve through those tokens, which is why the app looks coherent in every theme and why hand-rolling colors is discouraged.
-
-`globals.css` then adds app-level niceties: thin scrollbars, `overscroll-behavior-y: none`, `user-select: none` (inputs/textareas opt back in), and keyframes (`fadeIn`, `slideUp`, `shimmer`).
+That file defines the design tokens as CSS variables: `--background`, `--foreground`, `--card`, `--muted`, `--primary`, `--danger`, `--success`… and the Tailwind v4 classes mapped to them (`bg-background`, `text-foreground`, `border-border`…). **Use them religiously** - they automatically adapt to whichever theme is active (`light`/`dark`/`midnight`). Hand-rolled hex values would freeze one theme in place.
 
 ## The `midnight` default
 
-`layout.tsx` wraps the app in:
+First visit lands on `midnight` (dark navy). The theme switcher component lets the user flip to `light`/`dark`. Theme is stored by the library's own provider (not your code), keyed on `<html class="midnight|dark|light">`.
 
-```tsx
-<ThemeProvider attribute="class" defaultTheme="midnight" enableSystem
-  themes={["light", "dark", "midnight"]}>
-```
+## If you came from RN instead of web
 
-First visit = `midnight` (dark navy). Users can switch with `<ThemeSwitcher />`; the choice persists wherever amazeui stores it (it manages its own theme key - see `layout-and-theming.md`).
+The translation table you actually need is equally small:
 
-## Component props you will see everywhere
-
-- `className` everywhere (Tailwind).
-- `variant="glass"` on `Card` - the glassy translucent card used for compose spaces.
-- `size="sm" | "icon"` on `Button` - icon-only buttons are explicitly `size="icon"` with a comment ("no stacking issue") where flex-row wrapping was needed for RN-web.
-- `dotColor` on `TimelineItem` - the colored timeline rails; the app cycles six hex colors through a const array.
+- `flexDirection: 'row'` → `flex-row` in className
+- `justifyContent/alignItems` → `justify-*` / `items-*`
+- `StyleSheet.create` → avoid it; use className
+- `TouchableOpacity` → in this codebase, always `<Button>` or `<Pressable>` from primitives, styled via className
 
 ## Where to next
 

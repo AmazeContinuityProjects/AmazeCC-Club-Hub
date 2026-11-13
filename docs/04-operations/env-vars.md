@@ -1,55 +1,41 @@
 ---
 title: "Env vars"
-description: "Every env var this app reads, what the committed .env does to your build, and the dev-convenience keys."
+description: "Every knob this app has - what they do, what the committed .env does to your build, and the two rules never to break."
 ---
 
 # Env vars
 
-> **In one line:** one committed var, two dev conveniences, zero secrets - and a production build that needs `NEXT_PUBLIC_API_URL` set to work at all.
+> **In one line:** this repo has three public environment variables and one committed default value with a trap door — read this before `pnpm dev`.
 
-## The table
+## The three vars
 
-| Var | Read by | Effect when set | Effect when unset |
-|---|---|---|---|
-| `NEXT_PUBLIC_API_URL` | `src/lib/api.ts` → every request | **baked into the bundle at build time** | falls back to `https://api.amazecc.com` |
-| `NEXT_PUBLIC_VTOP_USERNAME` | `LoginPage.tsx` | pre-fills the login input (uppercase, dev convenience) | field starts empty |
-| `NEXT_PUBLIC_VTOP_PASSWORD` | `LoginPage.tsx` | pre-fills the password input | field starts empty |
+| Var | What it does | If missing |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | tells the app where the API lives | falls back to `https://api.amazecc.com` |
+| `NEXT_PUBLIC_VTOP_USERNAME` | pre-fills the username box (dev convenience) | starts empty |
+| `NEXT_PUBLIC_VTOP_PASSWORD` | pre-fills the password box (dev convenience) | starts empty |
 
-## The committed `.env`
+## "Public" means it
+
+Anything named `NEXT_PUBLIC_*` ends up inside the JS bundle that GitHub Pages serves to the entire planet. There is no such thing as a private public var. Treat the prefix as a fluorescent warning label.
+
+## The committed `.env` — read the warning
 
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
 
-This is **committed on purpose** so a fresh clone runs against a local AmazeCC-API without any setup. The consequences:
+That's all that's in the file. It's committed on purpose: fresh clone → `pnpm install` → `pnpm dev` → the app talks to your local API on port 3000. But:
 
 <Warning>
-**A production build made from this repo without overriding the var will bake
-`http://localhost:3000` into the JS bundle** — every API call from the deployed
-site hits the visitor's own machine. GitHub Pages CI does NOT inject
-`NEXT_PUBLIC_API_URL`, so the deployed site **cannot work correctly until either
-the committed `.env` is removed/changed or CI supplies the production value.**
-If you are preparing the Pages deploy, fix this first (prefer: set
-`NEXT_PUBLIC_API_URL=https://api.amazecc.com` in `nextjs.yml`'s build env, or
-write an `.env.production`), or every visitor gets a dead app.
+**A production `pnpm build` exported from this exact tree calls `http://localhost:3000`.**
+`actions/configure-pages` on CI does not override it handed to you, and no Pages env exists for it. Every visitor of the deployed site would try to reach their own machine. If you're deploying this, **set `NEXT_PUBLIC_API_URL=https://api.amazecc.com` in `nextjs.yml` just before `pnpm build`** (or delete `.env` and let the fallback do its job). This page is the only place it's said plainly.
 </Warning>
 
-## Changing it the right way
+## The two rules
 
-```bash
-# local dev, pointing at prod (careful — real data, real auth)
-NEXT_PUBLIC_API_URL=https://api.amazecc.com pnpm dev
-
-# local dev, pointing at local API (default — run AmazeCC-API on :3000)
-pnpm dev
-```
-
-**Editing `.env` and committing it is wrong.** Overriding in your shell is fine. The fix that sticks is in CI (see [deployment](./deployment.md)).
-
-## `.env` in git, recap
-
-- No secrets in it. It cannot hold anything sensitive — it's public, baked into the client bundle for anyone to read.
-- The dev-convenience `NEXT_PUBLIC_VTOP_*` keys are **not** set anywhere in the repo; they're recognized only if you add them locally (they were clearly used by someone's dev loop).
+1. **Never commit a real credential.** `NEXT_PUBLIC_*` is public; secrets go in the API's env, not here.
+2. **Override locally, never by editing `.env` in-place and committing.** `NEXT_PUBLIC_API_URL=https://api.amazecc.com pnpm dev` beats `git diff` noise.
 
 ## Where to next
 

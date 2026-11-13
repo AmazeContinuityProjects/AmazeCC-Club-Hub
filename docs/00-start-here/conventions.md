@@ -1,85 +1,79 @@
 ---
 title: "Conventions"
-description: "The patterns every file in this repo repeats - learn them here and the whole codebase reads the same."
+description: "The habits every file in this repo repeats - so once you learn five patterns, the whole codebase reads the same."
 ---
 
 # Conventions
 
-> **In one line:** client components, RN-web primitives, `apiFetch` everywhere, `data.success` gates, abortable fetches, and `localStorage` as the session.
+> **In one line:** this repo has one shape: `use client`, RN-web primitives, a `useEffect` that loads data, an `apiFetch` that talks to the API, a `data.success` gate, and `localStorage` for the session.
 
-## File and folder patterns
+Don't try to learn "React" first, then this repo. Learn the five patterns below and this repo teaches itself.
 
-| Pattern | Example | Meaning |
-|---|---|---|
-| `src/app/` | `page.tsx`, `layout.tsx` | the single "route" (a one-page app) |
-| `src/components/` | `FeedManager.tsx` | one component per file, default export |
-| `src/lib/api.ts` | `apiFetch` | the only network door |
-| `src/lib/ui.ts` | re-exports | import primitives from here, never from the package directly |
-| `docs/`, `grounding/` | this handbook | never imported by the app |
+## Pattern 1 - everything is a "client component"
 
-Every component starts with `"use client";`. Next.js App Router defaults to server components; this app has **no server components** - static export can't run them anywhere anyway.
+Almost every file starts with the exact line `"use client";`. In Next.js, components are either **server** components (rendered ahead of time, it thinks) or **client** components (live in your browser, respond to clicks). This app is 100% interactive, 100% static-exportable, so every file says `"use client"` and nothing depends on a server render.
 
-## Primitives, not HTML
+If you ever see a component without it that uses `useState`, the build will fail - that's what the marker prevents.
+
+## Pattern 2 - primitives instead of HTML
+
+You won't find `<div>` or `<span>` in this codebase. Instead:
 
 ```tsx
-import { View, Text, Button, Input } from "@/lib/ui";
+import { View, Text, Button } from "@/lib/ui";   // NOT from HTML
+
+<View className="flex flex-row items-center gap-2">
+  <Text>Club Hub</Text>
+</View>
 ```
 
-`View` becomes a `<div>`, `Text` a `<span>`, etc. - through react-native-web. Practical consequences:
+`View` ≈ `<div>`, `Text` ≈ `<span>`/`<p>`. They come from `@amazecontinuityprojects/amazeui` (React Native primitives) compiled for the browser via `react-native-web`. Why? Because the main AmazeCC app is written in the same primitives for phones - one component vocabulary across both. The price you pay is a mental translation layer for the first hour; the pay-off is coherence forever.
 
-- **`className`** works (via `react-native-web`'s style interop + Tailwind), but prefer the tokenized utilities (`bg-background`, `text-foreground`, `border-border`) - the theme owns those.
-- **`Pressable`/`onClick`** behave like DOM handlers with RN semantics. Event objects in `onChange` handlers are typed `any` deliberately (`(e: any) => setX(e.target.value)` - untyped RN-web events).
-- No `<div>`/`<span>`/`<p>`/`<form>` by convention - the only exceptions are `label`/`input` used inside the compose card (`FeedManager.tsx` uses a raw `<input type="file">` + `<label htmlFor=…>` deliberately for the file picker UX) and a `<form onSubmit>` in `LoginPage.tsx`.
+HTML elements you *will* see: `<form onSubmit>` in LoginPage, `<label>`+`<input type="file">` in FeedManager's image picker. Everywhere else uses primitives.
 
-## The `data.success` gate
-
-Almost every mutating call answers `{ success: true|false, ...rest }` (some GETs answer raw - see the [API Integration](../03-api-integration/index.md) pages). Components do exactly one of:
-
-```ts
-const data = await res.json();
-if (data.success) { /* apply change + local state patch */ }
-else alert(data.error || "<fallback message>");
-```
-
-Never branch on HTTP status when a `success` flag exists. The handful of raw GETs (`/api/events`) branch on `res.ok` instead.
-
-## Abortable effects, every mount
+## Pattern 3 - `useEffect` + `AbortController` = "load my data"
 
 ```tsx
 useEffect(() => {
-  const controller = new AbortController();
-  fetchPosts(controller.signal).finally(/* … */);
-  return () => controller.abort();
+  const controller = new AbortController();           // the "stop button" for fetches
+  fetchPosts(controller.signal).finally(() => {
+    if (!controller.signal.aborted) setLoading(false);
+  });
+  return () => controller.abort();                    // when the component unmounts or clubId changes: stop
 }, [fetchPosts]);
 ```
 
-- **Stop** = component unmounts or `clubId` changes.
-- `AbortError`s are swallowed on purpose - React StrictMode double-invokes effects in dev, and an `AbortError` on cleanup is normal, not an error.
-- `useCallback` pins the fetch to its dependencies so effects don't loop.
+In plain words:
 
-## `key={clubId}` remounts
+1. When this component first appears, run `fetchPosts`.
+2. If the component is about to disappear (or the club changed), cancel any in-flight request so we don't waste work or paint stale data.
+3. To make (2) work, fetch accepts a `signal` - a "please stop" wire. When you abort it, fetch rejects with `AbortError`, which the code swallows on purpose (it's not an error, it's a stop signal).
 
-In `page.tsx`, every tab content gets a template-string `key` of tab-name plus the active club id, so React unmounts and remounts the subtree on club switch - no stale posts from the previous club, no cross-club leakage. If you add a tab, give it the same treatment.
+`useCallback` wraps the fetch function so React sees the same function on every render and doesn't re-fire the effect forever. If you memorize one sentence: **the effect runs when the listed dependencies change; keep them stable.**
 
-## Deduplication at the boundary
+## Pattern 4 - the `data.success` gate
 
-`FeedManager` dedupes posts by `id` after fetch (with a `seen` Set) because the API or a StrictMode double-effect could deliver duplicates. Login dedupes `clubRoles` by `club_id` preferring `super-club-rep`. Same habit, two places: **if the source might duplicate, dedupe in the component.**
+Every mutating call (create/update/delete) returns `{ success: true|false, ... }`. Code reads it the same way every time:
 
-## Error UX
+```tsx
+const data = await res.json();
+if (data.success) { /* patch local state or refetch */ }
+else alert(data.error || "fallback message");   // or set an inline banner
+```
 
-There is no global error boundary or toast system wired - components use, in rough order of preference:
+The handful of raw GET calls (`/api/events`) skip the envelope and are checked with `res.ok` instead. See [Envelopes & errors](../03-api-integration/envelopes-and-errors.md) for the exact catalog of every shape this app consumes.
 
-1. `setMessage({ type, text })` inline `<Alert>` banners (auto-dismissed with `setTimeout`),
-2. `alert(...)` for one-off failures (FeedManager's compose/delete paths),
-3. `console.error` + `[]`-shaped fallbacks for loads (empty screens are better than crashed ones),
-4. FAB/overlay spinners during mutations (`saving`, `adding`, `refreshing`).
+## Pattern 5 - `localStorage` is the app's notepad
 
-## LocalStorage keys are contractual
+Three keys: `club_token` (the signed badge), `club_roles` (JSON list of clubs you represent), `active_club_id` (which club you're editing). `apiFetch` reads the first two headers' worth of them on every request. Logout deletes all three. If you clear them, you're instantly logged out and the app behaves as first visit.
 
-`club_token`, `club_roles`, `active_club_id` - documented in [LocalStorage keys](../05-reference/localstorage-keys.md). Never write new keys without adding them to that table.
+## Errors that don't look like errors
+
+- **StrictMode**: in development, React mounts components twice on purpose to catch bugs - which fires the fetch effect twice, which is why you'll sometimes see `AbortError` in dev console logs. It's expected.
+- **Deduplication by hand**: `FeedManager` filters posts by `id` after fetching (`seen` set); login dedupes club roles by `club_id`. Both are guards against exactly these double-effects and API quirks.
+- **Fail-soft loads**: initial fetch failures set state to `[]` and log to console - the UI shows the empty state, never a broken screen. In this repo, a working-looking empty screen is a *feature*, not a bug hide.
 
 ## Where to next
 
-- **[Components](../02-components/index.md)** - these conventions applied, file by file.
-- **[API Integration](../03-api-integration/index.md)** - the success/raw envelope zoo.
-- **[Known issues](../05-reference/known-issues.md)** - where the code and the docs quietly disagree today.
+- **[The vocabulary](./the-vocabulary.md)** - if a word here still felt fuzzy.
+- **[Components](../02-components/index.md)** - patterns applied, one file at a time.

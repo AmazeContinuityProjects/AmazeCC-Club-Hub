@@ -1,71 +1,60 @@
 ---
 title: "The static export"
-description: "output: 'export' explained - what pnpm build produces, what GitHub Pages serves, and what this means for you."
+description: "output: 'export' explained - the one config line that makes this site unbreakable, unrefreshable, and free forever."
 ---
 
 # The static export
 
-> **In one line:** `pnpm build` doesn't start a server - it writes a folder of HTML/CSS/JS that GitHub Pages serves verbatim.
+> **In one line:** instead of running a program on a server, this app ships pre-made files; the browser does 100% of the thinking at view time.
 
-## What `output: 'export'` changes
+## What "static" means here
 
-`next.config.ts`:
+Normally, when you visit a website, a **server** receives your request, runs code, computes what page to show, and sends it. That model needs a machine that's always on, costs money, can crash, and needs patching.
+
+Club Hub skips it. **Static** means: everything that can be done ahead of time, was done at **build time** (when a developer runs `pnpm build` on their machine). The result is a folder of files. Any computer anywhere - a laptop, a CDN, GitHub Pages - can serve them. Nobody's server has to stay awake for you.
+
+## The config that makes it happen
 
 ```ts
+// next.config.ts — the whole deal in three lines
 const nextConfig: NextConfig = {
-  output: 'export',
-  trailingSlash: true,
-  transpilePackages: ['@amazecontinuityprojects/amazeui'],
-  webpack: (config) => ({
-    ...config,
-    resolve: {
-      ...config.resolve,
-      alias: {
-        ...(config.resolve?.alias ?? {}),
-        'react-native$': require.resolve('react-native-web'),
-      },
-    },
-  }),
+  output: 'export',          // <-- build to files, not to a server
+  trailingSlash: true,       // <-- /path/ serves /path/index.html — required by static hosts
+  transpilePackages: ['@amazecontinuityprojects/amazeui'],  // so our theme system works
+  webpack: (config) => ({/* webpack tweaks for react-native-web */}),
 };
 ```
 
-With `output: 'export'`:
+`output: 'export'` is the load-bearing line. During `pnpm build`, Next.js:
 
-- **`next build` renders the whole app to static HTML** (`out/`). Any client component pages become HTML shells + JS bundles that React hydrates in the browser.
-- **No server, no API routes, no ISR.** Anything needing a network happens client-side after load.
-- **`process.env.NEXT_PUBLIC_*` is inlined at build time.** `NEXT_PUBLIC_API_URL` becomes a string literal inside the bundle. Changing it requires a rebuild, not a restart.
-- **`trailingSlash: true`** makes `/path/` serve `out/path/index.html` - required for clean static hosting.
-- **`out/index.html` existing is the deploy gate** - CI verifies this exact file (`test -f out/index.html && echo "Export OK"`).
+1. renders every page to static HTML (a shell + JS bundle),
+2. inlines every `process.env.NEXT_PUBLIC_*` value as a literal into that JS,
+3. writes it all to `out/`.
 
-## What GitHub Pages serves
+`nextjs.yml` then uploads `out/` to GitHub Pages. **`out/index.html` existing is the only "is it alive?" test the pipeline uses** (`test -f out/index.html`).
 
-`.github/workflows/nextjs.yml` does three things on every push to `main`:
+## What you can and cannot do
 
-1. `pnpm build` with `actions/configure-pages` **injecting the base path** (for project Pages URLs like `<org>.github.io/<repo>/`) and disabling image optimization,
-2. `actions/upload-pages-artifact@v3` with `./out`,
-3. `actions/deploy-pages@v4` deploying to the `github-pages` environment.
+**You CAN:** client-side routing-ish behavior, fetches everywhere, any UI library, anything the browser itself supports.
 
-The site is **fully static** - no SSR, no edge functions. The `manifest.json` points at the same static set (`/logo.png`, theme-color etc. - see `public/manifest.json`).
+**You CANNOT:** API routes (`app/api/*/route.ts`), server actions, `next/headers`, cookies set by the server, ISR/SSR/revalidation, database access at request time, `process.env.SECRET_THING`. Anything needing a secret or a database must happen in the API instead.
 
-## Why this app can be fully static (and why it must be)
+**You MUST remember:** every `NEXT_PUBLIC_*` you reference is baked into the JS bundle **forever, for everyone to read**. There is no "secure later" switch for those. This is why `NEXT_PUBLIC_API_URL=http://localhost:3000` in the committed `.env` produces a production build that calls localhost on every visitor's machine ([env vars](../04-operations/env-vars.md)).
 
-- **All privileged work happens at `api.amazecc.com`.** The DB, VTOP, and auth all live there. This app is a fancy remote control.
-- **Static hosting is free and unbreakable.** GitHub Pages: no cold starts, no server to die.
-- **The cost: zero server-side brains.** Everything you need must arrive via `NEXT_PUBLIC_*` or at runtime in the browser. No secrets, ever.
+## Why it's fine for this app
 
-## What you can't do here
+- The only privileged thing is writing/reading club data - all of that lives at the API.
+- The UI is small; client-side rendering is imperceptible on mobile.
+- Pages **never** go stale in a harmful way: at worst they're one deploy behind.
+- Cost: $0. GitHub Pages + free DNS + free TLS.
 
-- No API routes (`app/api/*/route.ts`) - they would be inert; `output: 'export'` ignores them at build.
-- No `next/headers`, no auth cookies, no server actions, no middleware.
-- No ISR/SSG revalidation jobs - the static files are the product.
-- `next/image` needs `unoptimized` or the Pages `configure-pages` shim (already injected by CI).
-
-## The webpack alias you must not remove
-
-`'react-native$': require.resolve('react-native-web')` - without it, Metro-only React Native imports (`react-native`) resolve to the RN package and the web build dies. The `transpilePackages: ['@amazecontinuityprojects/amazeui']` line makes Next run the library's TS through its compiler so the alias applies there too.
+<Note>
+**"Static" doesn't mean "unchangeable".** It means the *shell* is precomputed;
+the *data* is fetched live on every visit. Your feed shows today's posts,
+although the HTML file is from last deploy.
+</Note>
 
 ## Where to next
 
 - **[react-native-web & amazeui](./react-native-web.md)**
 - **[The AmazeCC context](./amazecc-context.md)**
-- **[CI](../04-operations/ci.md)**

@@ -1,65 +1,52 @@
 ---
 title: "RepManager"
-description: "Grant and revoke club-admin access - super reps only, exactly what the API and the UI each enforce."
+description: "The roster of people who can act on behalf of the club - adding a registration number, and every step that follows."
 ---
 
 # RepManager
 
-**File:** `src/components/RepManager.tsx` · **Tab:** Manage Representatives (super reps only) · **API:** `GET/POST/DELETE /api/club-admin/reps`
+**File:** `src/components/RepManager.tsx` · **Tab:** Manage Representatives · **Visible to:** super club reps only · **Job:** decide who else holds your club's keys
 
-> **In one line:** the roster editor - list who can act as club admin, add by registration number, remove with a confirm dialog.
+> **In one line:** the list of every registration number trusted to administer your club - and the screen that grants or revokes that trust.
 
-## Access control - both layers
+## What "being a rep" unlocks
 
-**UI:** the tab renders only when `isSuperRep` (the active club role from the token is exactly `super-club-rep`). `page.tsx` gates the render branch; `Sidebar`/mobile nav gate the entry point.
-**API:** `/api/club-admin/reps` is club-token protected and requires **super-club-rep** status on POST/DELETE; GET requires only the club token. Regular reps calling POST/DELETE get `403`. **Do not trust the UI gate alone.**
+Anyone on this list can do what you're doing right now: edit the public card, write posts, curate the landing page. **Super reps** (the higher tier) can also open this tab and change the roster. Regular reps cannot - they see five tabs hidden from them on this screen and can only see the four others.
 
-## State inventory
+## The three-digit genius of this screen
 
-| State | Type | Purpose |
-|---|---|---|
-| `reps` | `Rep[]` | the roster; `Rep = {id: number; vtop_id: string; role: string; created_at: string}` |
-| `newRep` | string | registration input |
-| `newRole` | string | `representative` (default) \| `super-club-rep` |
-| `loading` | boolean | first-load spinner |
-| `adding` | boolean | add-button spinner |
-| `deleting` | string \| null | vtop_id pending removal (dialog open) |
-| `showForm` | boolean | the add-bar toggle |
-| `message` | `{type, text}` | toast banner |
+There is one number that matters per row: `vtop_id` - the student's registration number. Everything else is chrome. Add by typing e.g. `21BCE0000`; remove by clicking a trash icon; done. The API is the actual gate on all of it.
 
-## Read path (exactly)
+## State and shape
 
-```ts
-GET /api/club-admin/reps?club_id=<id>   (X-Club-Id: <id>)
-// success → setReps(data.reps || []) · else setReps([]) (empty state)
+```tsx
+interface Rep { id: number; vtop_id: string; role: string; created_at: string; }
 ```
 
-## Add path (exactly)
+`reps` mirrors the API's `club_representatives` table (one row per rep per club). `newRole` defaults to `representative`; the only other choice is `super-club-rep`.
 
-```ts
-POST /api/club-admin/reps
-{ club_id, vtop_id: newRep.trim(), role: newRole }
-```
+## The three flows
 
-On success the component **patches local state** (`[...prev, {id: Date.now(), vtop_id, role, created_at: new Date().toISOString()}]`) - note the **synthetic client-side `id`** - re-fetching the list is not attempted, so ids from the server and the client disagree until reload. Harmless for rendering (the roster is keyed on `vtop_id`), but don't build anything that needs the server id.
+**List** (on mount): `GET /api/club-admin/reps?club_id=` → renders a timeline of initials-avatar rows (`21BCE0000`, role badge, "Added N days ago").
 
-## Remove path (exactly)
+**Add**: `POST /api/club-admin/reps { club_id, vtop_id: raw.trim(), role: newRole }` - uppercases server-side; the component prepends a synthetic row with `Date.now()` as a temporary id so the UI feels instant without refetching.
 
-```ts
-DELETE /api/club-admin/reps?vtop_id=<id>&club_id=<clubId>   (X-Club-Id: <id>)
-```
-
-Query params (not a body), confirmation `Dialog`, then local filter out. Failure shows the API's `error` in the banner.
-
-## Roster rendering
-
-Timeline rows: avatar circle with a `User` icon, registration number in `TimelineTitle`, `<Badge variant="warning">Super Rep</Badge>` for supers, human-relative date (`Added today/yesterday/N days ago`). Delete icon hidden until hover (`group-hover:opacity-100`).
+**Remove**: `DELETE /api/club-admin/reps?vtop_id=<id>&club_id=<clubId>` → server removes that row; UI filters it out locally; toast confirms ("Representative removed").
 
 <Warning>
-**A super rep can demote/remove another super rep - including themself** - via this UI; the API enforces only "super-rep acts on the club", with **no self-removal guard** (unlike `admin/users`). If you need break-glass protection, enforce it API-side, not here.
+**A super rep can remove themself.** The API enforces only "super reps manage reps" - not "don't remove the last super rep" or "don't remove yourself". Design consequence: a club can lock itself out of rep management. When building on top of this, guard at the API, not here.
 </Warning>
+
+## The badge system you'll notice
+
+- `<Badge variant="warning">Super Rep</Badge>` on super-rep rows.
+- The whole tab is hidden for regular reps (see [page.tsx](./page.md) and [Sidebar](./sidebar.md) for the isSuperRep computation).
+
+## The confirmation dialog
+
+Deleting has no undo. The dialog names exactly who disappears (`Remove 21BCE0000 from the rep list? They will lose admin access.`). One destructive misclick costs the club a rep; re-adding them takes an API call anyone on this screen can make.
 
 ## Where to next
 
-- **[ClubDetailsEditor](./club-details-editor.md)**
-- **[API Integration → auth flow](../03-api-integration/auth-flow.md)** - where `super-club-rep` comes from.
+- **[The auth flow](../03-api-integration/auth-flow.md)** - where `super-club-rep` actually comes from at login.
+- **[Known issues](../05-reference/known-issues.md)** - the API's one-directional super rep hazard.

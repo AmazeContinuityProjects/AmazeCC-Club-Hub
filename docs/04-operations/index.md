@@ -1,15 +1,19 @@
 ---
 title: "Operations"
-description: "Env vars, CI, the GitHub Pages deploy, and the security posture of a static site that holds club tokens in localStorage."
+description: "How to build it, deploy it, secure it - the runbook for when something is wrong and you're the one fixing it."
 ---
 
 # Operations
 
-> **In one line:** nothing runs on a server here - but CI, secrets and the deploy pipeline still have rules worth understanding before you touch them.
+> **In one line:** a static site, a CI that scans for malware, and a free deploy — plus the few sharp edges baked into `.env`.
 
-| Page | Read it when you… |
+| Page | When you read it |
 |---|---|
-| [Env vars](./env-vars.md) | …are about to `pnpm dev` for the first time, or wonder why prod talks to localhost |
-| [CI](./ci.md) | …want to know what runs on every PR, and what was compromised before |
-| [Deployment](./deployment.md) | …want to ship to GitHub Pages or fix the 404s |
-| [Security](./security.md) | …wonder what a stolen token can do, and what this repo deliberately refuses to do |
+| [Env vars](./env-vars.md) | first run, first build, first deploy |
+| [CI](./ci.md) | what happens on every PR; why the weird scan exists |
+| [Deployment](./deployment.md) | shipping to Pages; rollback |
+| [Security](./security.md) | what lives in localStorage; what XSS means here |
+
+## Where to next
+
+- **[Env vars](./env-vars.md)**

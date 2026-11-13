@@ -1,14 +1,14 @@
 ---
 title: "Reference"
-description: "The dense back matter - storage keys, data shapes, and the honest list of things that don't work."
+description: "The tables you keep open in a second tab - every key, type, and known flaw."
 ---
 
 # Reference
 
-> **In one line:** the tables you keep open in a second tab - storage keys, wire types, and the things we won't pretend are finished.
+> **In one line:** the cheat sheets - every localStorage key, every type, every honest flaw.
 
-| Page | What's inside |
+| Page | What you'll find |
 |---|---|
-| [LocalStorage keys](./localstorage-keys.md) | The three keys this app owns, who writes them, who reads them |
-| [Data types](./data-types.md) | `FeedPost`, `SocialLink`, `EventItem`, `LandingPageItem`, `Rep`, `INITIAL_DETAILS` |
-| [Known issues](./known-issues.md) | The honest debt list - images, tokens, env, dead files, name |
+| [LocalStorage keys](./localstorage-keys.md) | the three keys this app writes, who reads them, what they mean |
+| [Data types](./data-types.md) | the exact shape of every interface in the repo |
+| [Known issues](./known-issues.md) | what's broken, what's a wart, and what's a deliberate trade |

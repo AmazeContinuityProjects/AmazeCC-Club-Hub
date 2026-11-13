@@ -1,95 +1,122 @@
 ---
 title: "How it works, end to end"
-description: "From a click on New Post to a row in your club's feed: every hop through React, react-native-web, fetch and the API."
+description: "One button click, every hop - browser, JavaScript, fetch, HTTP, the API, Postgres - walked through plainly and precisely at the same time."
 ---
 
 # How it works, end to end
 
-> **In one line:** a browser-side React app renders react-native primitives on the web, every action becomes a `fetch` to the AmazeCC API with your club token in the header, and the API is the only thing that ever touches a database or VTOP.
+> **In one line:** you click New Post; the browser asks a distant computer to save that post (via the API); the computer re-checks you're a rep; it writes a row to its database; the browser refreshes the list - all inside two or three seconds.
 
-## The 60-second version
+This page follows **one real click** through every layer: **you press Post → the new card appears in your timeline**. Keep your finger on the code (`src/components/FeedManager.tsx`) while you read.
 
-1. **You open `https://<club-hub-url>/`** - a static HTML+JS file served by GitHub Pages. No server-side rendering happens here.
-2. **`src/app/page.tsx` renders.** It's a client component (`"use client"`) - everything happens in the browser.
-3. **If no token in `localStorage`, `LoginPage` renders.** You authenticate; the API verifies VTOP and returns a `clubToken`.
-4. **The app stores `club_token`, `club_roles`, `active_club_id` in `localStorage`** and renders the four tabs.
-5. **Every data read/write goes through `apiFetch`** (`src/lib/api.ts`), which adds `Authorization: Bearer <club_token>` and `X-Club-Id: <active_club_id>` to every request.
-6. **The API does the work** - reads/writes its Postgres, talks to VTOP, enforces the club token. You get JSON back.
+## Step 1 - the browser sees your click
 
-## The pieces, one by one
+Every interactive thing on a web page is an event. The Post button is a `<Button>` rendered by this component, and React attached an `onClick` behavior to it - `handleSubmit`.
 
-### Static export, no Next.js server
+```tsx
+// src/components/FeedManager.tsx (the important idea, abridged)
+const handleSubmit = async () => {
+  if (!content.trim()) return;               // nothing to post → stop
+  const links = socialLinks.filter(l => l.url);
+  const body = { content, links, club_id: clubId };
+  const res = await apiFetch("/api/club-admin/feed", {
+    method: "POST",                            // telling the server "create"
+    headers: { "Content-Type": "application/json", "X-Club-Id": clubId },
+    body: JSON.stringify(body),                // the message contents, as JSON text
+  });
+```
 
-`next.config.ts` sets `output: 'export'` with `trailingSlash: true`. `pnpm build` produces a plain `out/` directory - static files. `nextjs.yml` uploads `out/` to GitHub Pages. There is no Node server in production: no API routes, no server actions, no middleware - just files. That's why `.env` only needs `NEXT_PUBLIC_*` values (they're inlined into the JS bundle at build time) and why every piece of state can reset on hard refresh.
+Three new things to internalize reading that:
 
-### React, but written with primitives
+- **`async/await`** - `await` means "pause this function until the network finishes, but don't freeze the page." The rest of the app stays responsive while we wait.
+- **`JSON.stringify(body)`** - turns the JavaScript object into the JSON text `{ "content": "…", "links": [...], "club_id": "…" }` because HTTP bodies travel as bytes, not JS objects.
+- **`apiFetch`** - the one function in this repo that talks to servers (see Step 2).
 
-The components import `View`, `Text`, `Image`, `Button` from `@/lib/ui` - not from HTML. `@amazecontinuityprojects/amazeui` is a React Native-style component library that compiles to the web through `react-native-web` (aliased in `next.config.ts`'s webpack block). So the "HTML" you see in the browser is RN-Web's emulation of native primitives. The project's answer to "but the app is RN too" is deliberate code reuse - the AmazeCC app is React Native.
+## Step 2 - `apiFetch` stamps your identity on the request
 
-### `apiFetch` is the only door out
+`src/lib/api.ts` is the only place that knows the API lives at `https://api.amazecc.com` (or your `NEXT_PUBLIC_API_URL`). Before every request it attaches two headers:
 
 ```ts
-// src/lib/api.ts (exactly as it exists)
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://api.amazecc.com";
-
 export function apiFetch(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
-  const token = getClubToken();
-  if (token && !headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
+  const token = getClubToken();               // what's in localStorage right now
+
+  if (token && !headers.has("Authorization"))
+    headers.set("Authorization", `Bearer ${token}`);   // <- "who I am", cryptographically signed
+
   if (typeof window !== "undefined") {
     const activeClubId = localStorage.getItem("active_club_id");
-    if (activeClubId && !headers.has("X-Club-Id")) {
-      headers.set("X-Club-Id", activeClubId);
-    }
+    if (activeClubId && !headers.has("X-Club-Id"))
+      headers.set("X-Club-Id", activeClubId); // <- "which club I'm acting for"
   }
-  return fetch(apiUrl(path), { ...init, headers });
+
+  return fetch(apiUrl(path), { ...init, headers });    // the browser sends the request
 }
 ```
 
-Every component calls the API through this function (or `apiFetch` via a shared `signal` for cancellation). Notice:
+Read it like a recipe:
 
-- **The club token is attached automatically.** Components never think about auth.
-- **`X-Club-Id` selects which club you act on** - essential because a rep may represent multiple clubs. The API scopes the mutation to that club.
-- **The base URL comes from env at build time** (`NEXT_PUBLIC_API_URL`), falling back to production.
+1. Take whatever headers the caller gave me, or make a new set.
+2. If I have a club token (you logged in earlier), add `Authorization: Bearer <token>`. The API uses it to know you're you without you typing anything.
+3. If I know which club you're editing, add `X-Club-Id: <clubId>` - the API uses **this** to know which club's feed to write to.
+4. **Actually send the request** with `fetch` - the browser's built-in courier.
 
-### The club switch
+<Note>
+`fetch` is part of the browser itself - you don't install it. It promises a
+`Response` back, and the `Response` contains status + headers + body.
+</Note>
 
-`active_club_id` in `localStorage` is the single source of truth for "which club am I editing". Switching clubs remounts the tab content with `key={clubId}` - wiping all local component state (draft posts, half-typed forms) deliberately. The sidebar and the mobile top bar both switch it via `OptionPicker`.
+## Step 3 - the request crosses the internet
 
-### LocalStorage is the session
+The request travels from your browser to `api.amazecc.com` as raw bytes: method (`POST`), path (`/api/club-admin/feed`), headers (your two identity headers + `Content-Type: application/json`), then the JSON body. The server (a computer in a data center) receives it, passes it through **CORS** first, then to the **route handler** for `POST /api/club-admin/feed`.
 
-| Key | Written by | Contents |
-|---|---|---|
-| `club_token` | `LoginPage.handleLogin` | JWT-shaped club token (7-day expiry, from `POST /api/login`) |
-| `club_roles` | `LoginPage.handleLogin` | JSON array of `{ club_id, role }` (deduped, super wins) |
-| `active_club_id` | `page.tsx` / login | the club id currently being administered |
+## Step 4 - the API checks, stores, answers
 
-There is no logout endpoint - logout deletes the keys. The API has no session to kill server-side for club tokens either (they expire naturally).
+(The next pages of this handbook cover these paths in more depth; here's the 5-second recap.)
 
-## What a full login → post round trip looks like
+1. The route handler sees the `Authorization: Bearer` header.
+2. It **verifies the token's signature** (HMAC) and reads your identity and club list out of it. No database round-trip needed just to know who you are.
+3. It checks: is the club you want in your token's clubs list? If not → `403 Unauthorized for this club`.
+4. If content is present, it `INSERT`s a row into `club_feed` (Postgres - a database that stores data as tables, like a super-strict spreadsheet).
+5. It answers with `{ "success": true, "post": { …the row we just wrote… } }`.
+
+## Step 5 - the browser gets the answer
+
+Back in `handleSubmit`:
+
+```tsx
+  const data = await res.json();               // parse the JSON text into a JS object
+  if (data.success) {
+    setContent("");                            // clear the composer
+    setImagePreview(null);
+    await fetchPosts();                        // reload the timeline so the new card shows up
+  } else alert(data.error || "Failed to create post");
+```
+
+If the API said no (`success: false`), the app shows the API's `error` text in an `alert()` instead - you never "post" without knowing why.
+
+## Step 6 - React quietly re-renders
+
+`fetchPosts` calls the API again, `setPosts(unique)` updates state, and **React redraws the timeline** automatically. That's the whole point of React's state model: you don't command the screen to redraw; you change state and the framework handles the pixels.
+
+## Why this design (and not "render on the server")
+
+- **Static files are unbreakable.** `out/` is just files; GitHub Pages serves them for free forever.
+- **All the interesting logic lives in one place** (the API), not split across browser code that you can't secure.
+- **The cost:** every privileged decision happens at the API; this app is a glorified remote control. That's the right trade for an app this size.
+
+## One diagram to burn in
 
 ```
-Browser                      Club Hub                AmazeCC API
-  |  submit login form  ->      |                          |
-  |                        apiFetch('/api/login', POST)     |
-  |                                                   |──► VTOP (captcha solved here)
-  |                                                   |──► UPDATE/insert club_representatives? no - reads it
-  |                          ◄── { success, clubToken, clubRoles }
-  |  localStorage: club_token, club_roles, active_club_id
-  |  FeedManager mounts, apiFetch('/api/club-admin/feed?club_id=…')
-  |                                                   |──► SELECT club_feed …
-  |                          ◄── { success, feed: [ … ] }
-  |  renders Timeline with your posts
+   YOU            THIS APP                         THE API
+  ──────           ────────                        ───────
+  click Post ──►   apiFetch('/api/club-admin/feed') ──► checks token, checks club, writes row
+                 ◄──────── returned JSON { success } ──┘
+  see new card ◄── state update re-renders timeline
 ```
-
-The interesting bits:
-- **The API decides everything privileged.** The client *believes* it's a super rep because the token says so; the API re-checks on every request anyway.
-- **Club roles ride in the token and in localStorage** - the UI uses localStorage for instant reads and the API uses the token for enforcement.
 
 ## Where to next
 
-- **[The auth flow](../03-api-integration/auth-flow.md)** - the login contract in detail.
-- **[Conventions](./conventions.md)** - patterns this codebase repeats everywhere.
-- **[Components](../02-components/index.md)** - the walkthroughs.
+- **[Conventions](./conventions.md)** - the habits every file here repeats.
+- **[The auth flow](../03-api-integration/auth-flow.md)** - steps 3-5 zoomed all the way in.
+- **[FeedManager](../02-components/feed-manager.md)** - the component behind Post.

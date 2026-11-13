@@ -1,61 +1,74 @@
 ---
 title: "ClubDetailsEditor"
-description: "The public club profile editor - the directory-facing fields, the logo preview, and the save path."
+description: "The public card every student sees - eleven fields, the logo preview trick, and why Save is all-or-nothing."
 ---
 
 # ClubDetailsEditor
 
-**File:** `src/components/ClubDetailsEditor.tsx` · **Tab:** Club Details · **API:** `GET/POST /api/club-admin/details`
+**File:** `src/components/ClubDetailsEditor.tsx` · **Tab:** Club Details · **Job:** write your club's "About" card that everyone reads before joining
 
-> **In one line:** the form that becomes your club's public directory card and community-feed identity - mission, description, recruitment, socials, logo.
+> **In one line:** your club's public profile — mission, two markdown stories, links, contact info, and a remote logo URL.
 
-## State inventory
+## The eleven fields
 
-| State | Type | Purpose |
-|---|---|---|
-| `details` | the `INITIAL_DETAILS` object | all eleven fields, bound 1:1 to inputs |
-| `loading` | boolean | first-load spinner |
-| `saving` | boolean | FAB spinner during save |
-| `message` | `{type, text}` | toast banner |
-| `logoPreviewError` | boolean | `<Image>` `onError` latch for the logo URL |
+Reading order matches the screen: logo, mission, description, hiring process, recruitment link, website, Instagram, WhatsApp, point-of-contact name, phone, email. Grouped the way the cards on screen do:
 
-`INITIAL_DETAILS` = `{ mission, description, hiring_process, website, recruitment_link, instagram, whatsapp, poc, email, poc_phone, logo_url }` - exactly the columns `club_details` stores (plus `club_id`, supplied by the caller).
+**Club Icon (the logo)** — the only field with a preview. You paste **any URL**; the component renders it live next to the input. If the image 404s, an `onError` latch flips to a gray dashed placeholder and a red "Invalid URL" badge. The API itself never uploads or hosts the image - this field is a pointer, not a file upload.
 
-## Read path (exactly)
+**Basic Information** — `mission` (plain text, one line), `description` (**markdown**; what you write here renders as formatted HTML wherever the public card shows it).
 
-```ts
-GET /api/club-admin/details?club_id=<id>   (X-Club-Id: <id>)
-// success && details → all eleven fields copied with || "" fallbacks
-// success but no details row → INITIAL_DETAILS (a club with no card yet)
-// fetch throws → INITIAL_DETAILS again
+**Recruitment** — `hiring_process` (also markdown: how joining works at your club), `recruitment_link` (where the join form lives - Google Forms is the usual suspect).
+
+**Social & Contact** — `website`, `instagram`, `whatsapp`, then `poc` (name), `poc_phone`, `email`.
+
+## The state that matters (eleven inputs, one object)
+
+```tsx
+const [details, setDetails] = useState(INITIAL_DETAILS);   // 11 empty strings
 ```
 
-The component **never 404s** - a missing row just means blank fields.
+That single object is the entire edit surface. Every keystroke is one `setDetails(prev => ({ ...prev, [name]: value }))` - which is why `handleChange` is generic and the file stays short despite eleven fields.
 
-## Write path (exactly)
+## The load path, exactly
 
-```ts
+```tsx
+const res = await apiFetch(`/api/club-admin/details?club_id=${encodeURIComponent(clubId)}`,
+  { signal: controller.signal, headers: { "X-Club-Id": clubId } });
+const data = await res.json();
+if (data.success && data.details) {
+  setDetails({ mission: data.details.mission || "", … });   // copy all eleven with fallbacks
+} else setDetails(INITIAL_DETAILS);                          // fresh club = blank fields
+```
+
+## The Save path, exactly
+
+```tsx
 POST /api/club-admin/details
 { ...details, club_id: clubId }
 ```
 
-The API upserts the whole row (`INSERT … ON CONFLICT (club_id) DO UPDATE`) - again **wholesale replace**, so don't hand-edit `details` expecting a patch semantic. On success: green toast; else the API's error text.
+The API **upserts the whole row** on `club_id`. There is no "only send changed fields" path; omitting a field doesn't unset it (server-side COALESCE), so this screen always sends everything. The Save toast ("Details saved successfully!") appears for 5 seconds; errors render as a red banner.
 
-## The logo preview
+## Who sees this data
 
-- `logo_url` drives a gold live preview (`<Image>` with `onError` → `logoPreviewError=true` → gray dashed placeholder).
-- On `logo_url` edit the error latch resets (`handleChange` clears it).
-- A `<Badge variant="danger">Invalid URL</Badge>` renders next to the label when the URL fails.
-- "Open in new tab" button only when the URL is considered valid.
-- **The file never uploads** - `logo_url` is a remote reference; paste a raw link (e.g. an R2/B2 public object, an image host, a Drive-direct-link). If VTOP/clubs migrate to uploaded logos, the endpoint to extend is `/api/club-admin/details` (accept a fileId, not a URL) - not this frontend.
+Anyone opening your club in the AmazeCC app, or the web landing, before they even join. Your mission statement sells the club in two lines; your hiring process answers "but how do I join?" This is why markdown support exists - the public card renders `description` and `hiring_process` as formatted text, not raw symbols.
 
-## Layout & bits worth noting
+## The logo preview, complete explanation
 
-- Two-column grid (`lg:grid-cols-3`): left = logo card + Basic Information (mission, description) + Recruitment cards; right = Social & Contact (website/Instagram/WhatsApp, then PoC name, phone, email behind a `border-t` divider).
-- `Mission Statement` / `Hiring Process` / recruiting link are the **join-facing** fields - what a prospective member reads. Markdown is accepted for `description` and `hiring_process` (badge says so; the **app** renders them as markdown - `react-markdown` is in this repo's deps for future use; the emails/phone fields are plain).
-- FAB (`Fab` from amazeui) bottom-right, primary, `onPress={handleSave}`, spins `Loader2` while saving.
+```tsx
+const hasValidLogo = details.logo_url && !logoPreviewError;
+
+<Image src={details.logo_url}
+       onError={() => setLogoPreviewError(true)} … />
+```
+
+1. You paste a URL → preview renders it; `logoPreviewError` starts false.
+2. URL 404s → the browser fires `onError` → state flips → placeholder + badge.
+3. You edit the field → `handleChange` resets the error latch to false → the preview retries.
+
+**Hot take:** use a square image, ideally 256×256+, PNG/WebP. It appears in the directory and the feed - pixelation looks like a broken club.
 
 ## Where to next
 
-- **[RepManager](./rep-manager.md)** - the last tab.
-- **[API Integration → club-admin endpoints](../03-api-integration/club-admin-endpoints.md)**
+- **[LandingPageBuilder](./landing-page-builder.md)**
+- **[Club-admin endpoints](../03-api-integration/club-admin-endpoints.md)**

@@ -1,30 +1,48 @@
 ---
 title: "Layout & theming"
-description: "layout.tsx line by line - fonts, metadata, ThemeProvider (midnight default), and how globals.css completes the look."
+description: "layout.tsx explained - what the root file contributes before any of your screens render."
 ---
 
 # Layout & theming
 
-> **In one line:** `layout.tsx` sets fonts and the theme provider around a single page; everything else is className on amazeui tokens.
+> **In one line:** `layout.tsx` is the frame every page sits in - font choices, page title, the PWA manifest link, one theme provider, and nothing else.
 
-## `src/app/layout.tsx`, line by line
+## Line-by-line reading
+
+Open `src/app/layout.tsx`. Here is all of it with commentary - in the order a beginner should understand it:
 
 ```tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@amazecontinuityprojects/amazeui";
 import "./globals.css";
+```
 
+**`import type { Metadata }`** - TypeScript's way of saying "trust me, this shape is right" for the object below; no runtime code comes from it.
+
+**`Geist`, `Geist_Mono`** - fonts; Next downloads them **at build time** and self-hosts them. Your readers never hit Google's servers, and the fonts can't fail to load because the internet hiccuped. `variable: "--font-geist-sans"` mints a CSS variable you can reference anywhere.
+
+**`ThemeProvider`** - amazeui's theme context. Everything below it can read `useTheme()`, and it manages persistence.
+
+```tsx
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+```
 
+Create the two font objects. `subsets: ["latin"]` keeps the download small (no Cyrillic glyphs etc.).
+
+```tsx
 export const metadata: Metadata = {
   title: "AmazeCC Club Hub",
   description: "Manage your club's presence on AmazeCC",
   manifest: "/manifest.json",
 };
+```
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+`metadata` is how HTML `<head>` gets its `<title>` and the PWA manifest link. `manifest.json` (in `public/`) says "this site is installable" - name, icons, theme color. You don't see this object on screen; the browser does.
+
+```tsx
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html suppressHydrationWarning lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
@@ -41,27 +59,17 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
 
 Line by line:
 
-- **`Geist` / `Geist_Mono` via `next/font/google`** - self-hosted fonts with CSS variables (`--font-geist-sans`, `--font-geist-mono`). `next/font` downloads and subsets at build; no runtime Google Fonts call.
-- **`metadata`** - title/description used in the tab strip and social embeds; `manifest: "/manifest.json"` links `public/manifest.json` (name, icons, theme color, display: standalone) - installable as a PWA.
-- **`suppressHydrationWarning` on `<html>`** - required because ThemeProvider mutates `<html class>` before React hydrates; without it you'd get dev-mode hydration warnings.
-- **`attribute="class"`** - themes toggle the `class` attribute (`light`/`dark`/`midnight`) on `<html>`, which is what Tailwind v4's `dark:`/custom variants key off in amazeui's preset.
-- **`defaultTheme="midnight"`** - first paint is midnight; `enableSystem` lets `ThemeSwitcher` offer system-following; `themes` lists the three the app supports.
+- **`suppressHydrationWarning`** - the theme system mutates `<html class="midnight">` before React boots; this tells React "don't complain the HTML doesn't match what I'd have produced" - that's expected behavior for theme-on-html setups.
+- **`<body className="min-h-full flex flex-col">`** - every page starts full height, is a flex column; the page's own content decides what happens from there.
+- **`attribute="class"`** - themes toggle the `class` on `<html>`; `defaultTheme="midnight"` - first visit is midnight; `enableSystem` - the provider may follow the OS if the user hasn't chosen; `themes` - the three the css-side actually supports.
 
-## The single page
+And that's everything. `layout.tsx` contains **no** nav, **no** header, **no** app logic - those live in `page.tsx`. Think of it as picture-frame molding, not the painting.
 
-`layout.tsx` provides shell + theme. Everything else happens in `page.tsx` - there is no nested route. `public/manifest.json` (shown in the repo) declares the PWA identity; `globals.css` paints the background and scrollbar aesthetics listed in the [react-native-web page](./react-native-web.md).
+## What about `globals.css`?
 
-## Themes available
-
-| Name | Vibe | When you see it |
-|---|---|---|
-| `light` | white, indigo accents | explicit choice |
-| `dark` | near-black, indigo accents | explicit choice |
-| `midnight` | deep navy, glowing accents | **default** |
-
-Switch via the `ThemeSwitcher` component (two copies exist: one exported from `@/lib/ui` (used in Navbar/Sidebar), one legacy re-export file `src/components/ThemeSwitcher.tsx` - see [known issues](../05-reference/known-issues.md)).
+`layout.tsx` imports it because CSS must exist to style anything. It opens with `@import "@amazecontinuityprojects/amazeui/tailwind.css"`, then a thin scrollbar style, `overscroll-behavior` (so pull-to-refresh doesn't hijack iOS), and keyframes (`fadeIn`, `slideUp`, `shimmer`). The palette tokens you use everywhere - `bg-background`, `text-foreground`, `border-border` - come from the imported amazeui css-vars file; this one is yours to add to, cautiously (append, don't override).
 
 ## Where to next
 
 - **[The AmazeCC context](./amazecc-context.md)**
-- **[react-native-web & amazeui](./react-native-web.md)**
+- **[Layout & theming is only meaningful once you've seen a screen](../02-components/page.md)**

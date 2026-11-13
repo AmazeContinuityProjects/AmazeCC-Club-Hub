@@ -1,15 +1,15 @@
 ---
 title: "ThemeSwitcher"
-description: "A one-file re-export - why it exists and where the real component lives."
+description: "Five lines of re-export, one dead import - the smallest file in the repo and the clearest cleanup, explained."
 ---
 
 # ThemeSwitcher
 
-**File:** `src/components/ThemeSwitcher.tsx` · **Size:** 5 lines · **Uses:** `@amazecontinuityprojects/amazeui`
+**File:** `src/components/ThemeSwitcher.tsx` · **Size:** 5 lines · **Status:** dead
 
-> **In one line:** `export { ThemeSwitcher } from "@amazecontinuityprojects/amazeui"` - a backwards-compatibility shim, nothing more.
+> **In one line:** it re-exports the theme toggle from the library, and nothing imports it.
 
-## What it contains
+## Its entire contents
 
 ```tsx
 // This component now delegates to AmazeUI's built-in ThemeSwitcher.
@@ -18,13 +18,19 @@ description: "A one-file re-export - why it exists and where the real component 
 export { ThemeSwitcher } from "@amazecontinuityprojects/amazeui";
 ```
 
-## Why it exists and what to do
+Read that once more slowly:
 
-It pre-dates the centralization in `@/lib/ui.ts`. Nothing in the repo imports it (`page.tsx` and `Sidebar.tsx` import from `@/lib/ui`). It is dead weight kept around for backwards compatibility. If you're cleaning up: delete it, and make sure nothing imports `@/components/ThemeSwitcher` (nothing does). See [known issues](../05-reference/known-issues.md).
+- It exports the **exact same `ThemeSwitcher` object** the library ships. No props, no wrapping, no behavior changes.
+- Nothing else in this repo imports `src/components/ThemeSwitcher.tsx` - the two call sites (`page.tsx` mobile top bar, `Sidebar` header) import `ThemeSwitcher` from `@/lib/ui`.
+- It exists only "for backwards compatibility" - some past code presumably imported `@/components/ThemeSwitcher`. That code is gone now.
 
-## The real component
+## What you should do with it
 
-`ThemeSwitcher` from `@amazecontinuityprojects/amazeui` - the dropdown/cycle control for `light` / `dark` / `midnight` (see [layout & theming](../01-architecture/layout-and-theming.md)).
+Delete it. Then `rg "components/ThemeSwitcher"` should show no references (it doesn't), and your build still passes. See [Known issues](../05-reference/known-issues.md).
+
+## The theme toggle it re-exports
+
+The real `ThemeSwitcher` flips between `light` / `dark` / `midnight` by calling the library's `ThemeProvider` methods - no state lives in this file, no localStorage, nothing. The user's choice persists because the provider's config handles that itself.
 
 ## Where to next
 

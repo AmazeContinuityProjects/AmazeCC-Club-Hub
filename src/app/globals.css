@@ -1,5 +1,15 @@
 @import "@amazecontinuityprojects/amazeui/tailwind.css";
 
+@theme inline {
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-geist), var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+::selection {
+  background: oklch(0.65 0.15 250 / 0.35);
+  color: inherit;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

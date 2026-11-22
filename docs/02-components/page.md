@@ -26,7 +26,7 @@ flowchart TB
   SHELL -->|logout| PURGE[(localStorage\n3 keys wiped)]
 ```
 
-> There is no router beyond `activeTab`; switching tabs unmounts/remounts the branch via `key={`${tab}-${activeClubId}`}`.
+> There is no router beyond `activeTab`; switching tabs remounts the tab component with a key made of the tab name and the active club id.
 
 ```
 ┌──────────────┬───────────────────────────────────────┐
